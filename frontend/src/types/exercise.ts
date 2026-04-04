@@ -69,7 +69,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Segmental spinal mobilization.', position: 'all-fours',
     sets: 3, repsPerSet: 10, holdSeconds: 2, durationSeconds: 60, restSeconds: 20,
     guard: { monitoredAngles: ['spine-curve'], neutralThresholdDeg: 160, twistThresholdZ: 0.05, maxRangeOfMotion: 40, warningMessage: 'Avoid sudden jerking.', stopMessage: 'Excessive twisting detected.' },
-    monitoredViolations: ['TWISTING'], icon: '🐈', videoUrl: 'https://www.youtube.com/watch?v=1Y0YjXS9sKI',
+    monitoredViolations: ['TWISTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=1Y0YjXS9sKI',
     cues: ['Keep arms straight', 'Gentle movement'], aiGuardDescription: 'Spinal segment monitor', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'childs-pose': {
@@ -80,7 +80,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Passive lumbar stretching.', position: 'lying',
     sets: 3, repsPerSet: 1, holdSeconds: 30, durationSeconds: 30, restSeconds: 15,
     guard: { monitoredAngles: ['hip-flexion'], neutralThresholdDeg: 45, twistThresholdZ: 0.03, maxRangeOfMotion: 10, warningMessage: 'Keep hips back.', stopMessage: 'Improper alignment.' },
-    monitoredViolations: ['BENDING'], icon: '🧘', videoUrl: 'https://www.youtube.com/watch?v=kH12QrSGedM',
+    monitoredViolations: ['BENDING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=kH12QrSGedM',
     cues: ['Relax neck', 'Reach forward'], aiGuardDescription: 'Posture alignment', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'hamstring-stretch': {
@@ -91,7 +91,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Reduces neural tension and pelvic pull.', position: 'lying',
     sets: 3, repsPerSet: 5, holdSeconds: 15, durationSeconds: 60, restSeconds: 20,
     guard: { monitoredAngles: ['hip-angle'], neutralThresholdDeg: 90, twistThresholdZ: 0.04, maxRangeOfMotion: 100, warningMessage: 'Do not overstretch.', stopMessage: 'Aggressive stretch detected.' },
-    monitoredViolations: ['LIFTING'], icon: '🦵', videoUrl: 'https://www.youtube.com/watch?v=Q4_TmIekeZ8',
+    monitoredViolations: ['LIFTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=Q4_TmIekeZ8',
     cues: ['Keep knee straight', 'Flex foot'], aiGuardDescription: 'Angle monitor', difficultyLevel: 2, weekRange: 'Phase 2'
   },
   'piriformis-stretch': {
@@ -102,7 +102,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Sciatic nerve decompression.', position: 'lying',
     sets: 3, repsPerSet: 5, holdSeconds: 20, durationSeconds: 60, restSeconds: 20,
     guard: { monitoredAngles: ['hip-abduction'], neutralThresholdDeg: 45, twistThresholdZ: 0.05, maxRangeOfMotion: 60, warningMessage: 'Keep your back flat.', stopMessage: 'Excessive lumbar twisting.' },
-    monitoredViolations: ['TWISTING'], icon: '🧘', videoUrl: 'https://www.youtube.com/watch?v=mT-3b4rgRzg',
+    monitoredViolations: ['TWISTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=mT-3b4rgRzg',
     cues: ['Keep head down', 'Gentle pull'], aiGuardDescription: 'Crossover monitor', difficultyLevel: 1, weekRange: 'Phase 1'
   },
 
@@ -115,7 +115,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Neuromuscular control of pelvis.', position: 'lying',
     sets: 3, repsPerSet: 15, holdSeconds: 5, durationSeconds: 60, restSeconds: 15,
     guard: { monitoredAngles: ['lumbar-spine'], neutralThresholdDeg: 175, twistThresholdZ: 0.02, maxRangeOfMotion: 5, warningMessage: 'Keep back flat.', stopMessage: 'Arching detected.' },
-    monitoredViolations: ['BENDING'], icon: '🍑', videoUrl: 'https://www.youtube.com/watch?v=RZi6di5IjW8',
+    monitoredViolations: ['BENDING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=RZi6di5IjW8',
     cues: ['Press lower back down', 'Exhale on tilt'], aiGuardDescription: 'Lumbar flat monitor', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'glute-bridge': {
@@ -126,7 +126,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Gluteal strengthening and spinal stabilization.', position: 'lying',
     sets: 3, repsPerSet: 12, holdSeconds: 2, durationSeconds: 60, restSeconds: 30,
     guard: { monitoredAngles: ['hip-ext'], neutralThresholdDeg: 180, twistThresholdZ: 0.05, maxRangeOfMotion: 20, warningMessage: 'Do not overarch your back.', stopMessage: 'Lumbar hyperextension.' },
-    monitoredViolations: ['OVER_EXTENSION'], icon: '🌉', videoUrl: 'https://www.youtube.com/watch?v=XLXGydU5DdU',
+    monitoredViolations: ['OVER_EXTENSION'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=XLXGydU5DdU',
     cues: ['Drive through heels', 'Keep core tight'], aiGuardDescription: 'Hip extension tracker', difficultyLevel: 2, weekRange: 'Phase 2'
   },
   'bird-dog': {
@@ -137,7 +137,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Core and multifidus stability.', position: 'all-fours',
     sets: 3, repsPerSet: 8, holdSeconds: 3, durationSeconds: 60, restSeconds: 30,
     guard: { monitoredAngles: ['shoulder-hip-line'], neutralThresholdDeg: 165, twistThresholdZ: 0.06, maxRangeOfMotion: 15, warningMessage: 'Do not twist hips.', stopMessage: 'Pelvic rotation detected.' },
-    monitoredViolations: ['TWISTING'], icon: '🐦', videoUrl: 'https://www.youtube.com/watch?v=ZdAHe9_HeEw',
+    monitoredViolations: ['TWISTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=ZdAHe9_HeEw',
     cues: ['Reach long', 'Hips square to floor'], aiGuardDescription: 'Rotational stabilizer', difficultyLevel: 2, weekRange: 'Phase 2'
   },
   'dead-bug': {
@@ -148,7 +148,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Dynamic core stability.', position: 'lying',
     sets: 3, repsPerSet: 10, holdSeconds: 0, durationSeconds: 60, restSeconds: 30,
     guard: { monitoredAngles: ['lumbar-arch'], neutralThresholdDeg: 180, twistThresholdZ: 0.03, maxRangeOfMotion: 5, warningMessage: 'Back is lifting.', stopMessage: 'Loss of core control.' },
-    monitoredViolations: ['BENDING'], icon: '🐜', videoUrl: 'https://www.youtube.com/watch?v=o4GKiEoYClI',
+    monitoredViolations: ['BENDING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=o4GKiEoYClI',
     cues: ['Slow and controlled', 'Breathe normally'], aiGuardDescription: 'Arch detector', difficultyLevel: 3, weekRange: 'Phase 3'
   },
   'plank': {
@@ -159,7 +159,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Global core endurance.', position: 'lying',
     sets: 3, repsPerSet: 1, holdSeconds: 30, durationSeconds: 30, restSeconds: 30,
     guard: { monitoredAngles: ['hip-alignment'], neutralThresholdDeg: 170, twistThresholdZ: 0.05, maxRangeOfMotion: 10, warningMessage: 'Hips are sagging.', stopMessage: 'Lumbar strain risk.' },
-    monitoredViolations: ['BENDING'], icon: '🛹', videoUrl: 'https://www.youtube.com/watch?v=pvIjsG5Svck',
+    monitoredViolations: ['BENDING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=pvIjsG5Svck',
     cues: ['Squeeze glutes', 'Keep neck neutral'], aiGuardDescription: 'Sagging detector', difficultyLevel: 3, weekRange: 'Phase 3'
   },
 
@@ -172,7 +172,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Disc centralization.', position: 'lying',
     sets: 3, repsPerSet: 10, holdSeconds: 2, durationSeconds: 45, restSeconds: 20,
     guard: { monitoredAngles: ['spine-ext'], neutralThresholdDeg: 160, twistThresholdZ: 0.04, maxRangeOfMotion: 40, warningMessage: 'Keep hips on floor.', stopMessage: 'Hips lifted.' },
-    monitoredViolations: ['LIFTING'], icon: '🧘', videoUrl: 'https://www.youtube.com/watch?v=D0p1kUfrYs4',
+    monitoredViolations: ['LIFTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=D0p1kUfrYs4',
     cues: ['Keep hips heavy', 'Arms do the work'], aiGuardDescription: 'Extension stabilizer', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'nerve-glide': {
@@ -183,7 +183,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Desensitizes the sciatic nerve.', position: 'seated',
     sets: 2, repsPerSet: 10, holdSeconds: 1, durationSeconds: 45, restSeconds: 20,
     guard: { monitoredAngles: ['knee-ankle-neck'], neutralThresholdDeg: 150, twistThresholdZ: 0.05, maxRangeOfMotion: 90, warningMessage: 'Slow down.', stopMessage: 'Aggressive flossing.' },
-    monitoredViolations: ['OVER_EXTENSION'], icon: '🧠', videoUrl: 'https://www.youtube.com/watch?v=NLGduAw_hB8',
+    monitoredViolations: ['OVER_EXTENSION'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=NLGduAw_hB8',
     cues: ['Point toes', 'Flex toes'], aiGuardDescription: 'Tension monitor', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'walking': {
@@ -194,7 +194,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'General mobility and circulation.', position: 'standing',
     sets: 1, repsPerSet: 1, holdSeconds: 600, durationSeconds: 600, restSeconds: 0,
     guard: { monitoredAngles: ['torso-lean'], neutralThresholdDeg: 180, twistThresholdZ: 0.05, maxRangeOfMotion: 10, warningMessage: 'Stand up straighter.', stopMessage: 'Excessive leaning.' },
-    monitoredViolations: ['BENDING'], icon: '🚶', videoUrl: 'https://www.youtube.com/watch?v=AdqrTg_hpEQ',
+    monitoredViolations: ['BENDING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=AdqrTg_hpEQ',
     cues: ['Small steps', 'Soft landing'], aiGuardDescription: 'Gait monitor', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'standing-ext': {
@@ -205,7 +205,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Relieves anterior disc pressure.', position: 'standing',
     sets: 3, repsPerSet: 10, holdSeconds: 3, durationSeconds: 60, restSeconds: 15,
     guard: { monitoredAngles: ['lumbar-ext'], neutralThresholdDeg: 180, twistThresholdZ: 0.04, maxRangeOfMotion: 30, warningMessage: 'Stop if pain occurs.', stopMessage: 'Excessive extension.' },
-    monitoredViolations: ['OVER_EXTENSION'], icon: '🧍', videoUrl: 'https://www.youtube.com/watch?v=TpIL3IvBk8k',
+    monitoredViolations: ['OVER_EXTENSION'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=TpIL3IvBk8k',
     cues: ['Support your back', 'Breathe'], aiGuardDescription: 'Extension tracker', difficultyLevel: 2, weekRange: 'Phase 2'
   },
 
@@ -218,7 +218,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Corrects forward head posture.', position: 'seated',
     sets: 3, repsPerSet: 12, holdSeconds: 3, durationSeconds: 30, restSeconds: 10,
     guard: { monitoredAngles: ['neck-alignment'], neutralThresholdDeg: 180, twistThresholdZ: 0.02, maxRangeOfMotion: 10, warningMessage: 'Do not tilt head.', stopMessage: 'Shear force risk.' },
-    monitoredViolations: ['TWISTING'], icon: '🪑', videoUrl: 'https://www.youtube.com/watch?v=H0TWk06p5s4',
+    monitoredViolations: ['TWISTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=H0TWk06p5s4',
     cues: ['Pull head straight back', 'Eyes forward'], aiGuardDescription: 'Cervical guard', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'wall-angels': {
@@ -229,7 +229,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Thoracic mobility and scapular control.', position: 'standing',
     sets: 3, repsPerSet: 10, holdSeconds: 0, durationSeconds: 60, restSeconds: 30,
     guard: { monitoredAngles: ['arm-plane'], neutralThresholdDeg: 170, twistThresholdZ: 0.1, maxRangeOfMotion: 180, warningMessage: 'Keep arms back.', stopMessage: 'Compensation detected.' },
-    monitoredViolations: ['LIFTING'], icon: '👼', videoUrl: 'https://www.youtube.com/watch?v=cvx06snMQ3A',
+    monitoredViolations: ['LIFTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=cvx06snMQ3A',
     cues: ['Lower back against wall', 'Slow slide'], aiGuardDescription: 'Scapular plane monitor', difficultyLevel: 2, weekRange: 'Phase 2'
   },
   'scapular-retraction': {
@@ -240,7 +240,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Strengthens rhomboids and mid-traps.', position: 'seated',
     sets: 3, repsPerSet: 15, holdSeconds: 5, durationSeconds: 60, restSeconds: 15,
     guard: { monitoredAngles: ['shoulder-pull'], neutralThresholdDeg: 180, twistThresholdZ: 0.05, maxRangeOfMotion: 15, warningMessage: 'Do not shrug shoulders.', stopMessage: 'Trapezius compensation.' },
-    monitoredViolations: ['LIFTING'], icon: '👐', videoUrl: 'https://www.youtube.com/watch?v=hJffqKmfnfA',
+    monitoredViolations: ['LIFTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=hJffqKmfnfA',
     cues: ['Shoulders down', 'Gentle squeeze'], aiGuardDescription: 'Scapular monitor', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'thoracic-ext': {
@@ -251,7 +251,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Reduces kyphosis and improves breathing.', position: 'seated',
     sets: 3, repsPerSet: 5, holdSeconds: 10, durationSeconds: 60, restSeconds: 20,
     guard: { monitoredAngles: ['thoracic-angle'], neutralThresholdDeg: 160, twistThresholdZ: 0.05, maxRangeOfMotion: 30, warningMessage: 'Support your neck.', stopMessage: 'Neck strain detected.' },
-    monitoredViolations: ['OVER_EXTENSION'], icon: '🩻', videoUrl: 'https://www.youtube.com/watch?v=ojCkd6_VdNk',
+    monitoredViolations: ['OVER_EXTENSION'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=ojCkd6_VdNk',
     cues: ['Hands behind head', 'Open elbows'], aiGuardDescription: 'Upper back tracker', difficultyLevel: 1, weekRange: 'Phase 1'
   },
   'band-row': {
@@ -262,7 +262,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Dynamic postural strengthening.', position: 'standing',
     sets: 3, repsPerSet: 12, holdSeconds: 1, durationSeconds: 60, restSeconds: 30,
     guard: { monitoredAngles: ['elbow-angle'], neutralThresholdDeg: 90, twistThresholdZ: 0.05, maxRangeOfMotion: 120, warningMessage: 'Do not lean back.', stopMessage: 'Torso swinging.' },
-    monitoredViolations: ['TWISTING'], icon: '🏹', videoUrl: 'https://www.youtube.com/watch?v=whSXi-EXbqI',
+    monitoredViolations: ['TWISTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=whSXi-EXbqI',
     cues: ['Tall spine', 'Slow return'], aiGuardDescription: 'Torso stabilizer', difficultyLevel: 2, weekRange: 'Phase 2'
   },
 
@@ -275,7 +275,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Functional lower body integration.', position: 'standing',
     sets: 3, repsPerSet: 12, holdSeconds: 0, durationSeconds: 60, restSeconds: 45,
     guard: { monitoredAngles: ['knee-angle', 'hip-angle'], neutralThresholdDeg: 180, twistThresholdZ: 0.08, maxRangeOfMotion: 90, warningMessage: 'Don\'t let knees cave in.', stopMessage: 'Knee shear risk.' },
-    monitoredViolations: ['BENDING'], icon: '🏋️', videoUrl: 'https://www.youtube.com/watch?v=xqvCmoLULNY',
+    monitoredViolations: ['BENDING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=xqvCmoLULNY',
     cues: ['Chest up', 'Knees over toes'], aiGuardDescription: 'Squat depth monitor', difficultyLevel: 3, weekRange: 'Phase 3'
   },
   'lunge': {
@@ -286,7 +286,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Single-leg stability and gait prep.', position: 'standing',
     sets: 3, repsPerSet: 10, holdSeconds: 0, durationSeconds: 60, restSeconds: 45,
     guard: { monitoredAngles: ['knee-angle'], neutralThresholdDeg: 180, twistThresholdZ: 0.1, maxRangeOfMotion: 90, warningMessage: 'Steady your balance.', stopMessage: 'Loss of balance.' },
-    monitoredViolations: ['TWISTING'], icon: '🪜', videoUrl: 'https://www.youtube.com/watch?v=tQNktxPkSeE',
+    monitoredViolations: ['TWISTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=tQNktxPkSeE',
     cues: ['Stay upright', 'Push back strongly'], aiGuardDescription: 'Lunge balance tracker', difficultyLevel: 3, weekRange: 'Phase 3'
   },
   'hip-abduction': {
@@ -297,7 +297,7 @@ const EXERCISE_LIB: Record<string, Exercise> = {
     clinicalPurpose: 'Gluteus medius strengthening.', position: 'standing',
     sets: 3, repsPerSet: 15, holdSeconds: 2, durationSeconds: 60, restSeconds: 20,
     guard: { monitoredAngles: ['hip-lat-angle'], neutralThresholdDeg: 180, twistThresholdZ: 0.05, maxRangeOfMotion: 45, warningMessage: 'Don\'t lean your torso.', stopMessage: 'Lateral compensation.' },
-    monitoredViolations: ['TWISTING'], icon: '🤸', videoUrl: 'https://www.youtube.com/watch?v=g9FtnmsIYgI',
+    monitoredViolations: ['TWISTING'], icon: '', videoUrl: 'https://www.youtube.com/watch?v=g9FtnmsIYgI',
     cues: ['Hold onto a wall', 'Core tight'], aiGuardDescription: 'Lateral hip monitor', difficultyLevel: 3, weekRange: 'Phase 3'
   }
 };

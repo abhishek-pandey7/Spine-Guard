@@ -35,12 +35,12 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-LEG_STRAIGHT_MIN = 160   # degrees — raised leg should be nearly straight
-HIP_ELEVATION    = 0.06  # normalised y — leg rise above hip
-TRUNK_ROLL_TOL   = 0.05  # normalised x — shoulder-hip alignment
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+LEG_STRAIGHT_MIN = 140   # degrees — raised leg should be nearly straight (was 160)
+HIP_ELEVATION    = 0.03  # normalised y — leg rise above hip (was 0.06)
+TRUNK_ROLL_TOL   = 0.09  # normalised x — shoulder-hip alignment (was 0.05)
 
-UP_THRESH        = 0.04  # ankle above hip to count as up
+UP_THRESH        = 0.02  # ankle above hip to count as up (was 0.04)
 
 
 def _angle(a, b, c):

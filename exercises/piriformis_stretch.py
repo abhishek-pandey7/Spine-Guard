@@ -35,13 +35,13 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-CROSS_DISTANCE   = 0.10  # normalised — ankle close to opposite knee
-PULL_DISTANCE    = 0.08  # normalised — knee moves toward chest
-BACK_FLAT_TOL    = 12    # degrees — shoulder-hip-knee flatness
-TWIST_TOL        = 0.05  # normalised y — left vs right shoulder
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+CROSS_DISTANCE   = 0.18  # normalised — ankle close to opposite knee (was 0.10)
+PULL_DISTANCE    = 0.04  # normalised — knee moves toward chest (was 0.08)
+BACK_FLAT_TOL    = 20    # degrees — shoulder-hip-knee flatness (was 12)
+TWIST_TOL        = 0.09  # normalised y — left vs right shoulder (was 0.05)
 
-STRETCH_THRESH   = 0.06  # knee movement toward chest
+STRETCH_THRESH   = 0.03  # knee movement toward chest (was 0.06)
 
 
 def _angle(a, b, c):

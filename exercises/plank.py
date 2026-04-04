@@ -32,14 +32,14 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-ALIGNMENT_TOL    = 12    # degrees — shoulder-hip-ankle deviation from straight
-HIP_SAG_TOL      = 0.06  # normalised y — hip below shoulder line
-HIP_PIKE_TOL     = 0.06  # normalised y — hip above shoulder line
-ELBOW_DRIFT      = 0.08  # normalised x — elbow under shoulder
-HEAD_NEUTRAL_TOL = 0.05  # normalised y — head in line with spine
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+ALIGNMENT_TOL    = 20    # degrees — shoulder-hip-ankle deviation from straight (was 12)
+HIP_SAG_TOL      = 0.10  # normalised y — hip below shoulder line (was 0.06)
+HIP_PIKE_TOL     = 0.10  # normalised y — hip above shoulder line (was 0.06)
+ELBOW_DRIFT      = 0.12  # normalised x — elbow under shoulder (was 0.08)
+HEAD_NEUTRAL_TOL = 0.08  # normalised y — head in line with spine (was 0.05)
 
-HOLD_THRESH      = 0.04  # minimum elevation to detect plank position
+HOLD_THRESH      = 0.02  # minimum elevation to detect plank position (was 0.04)
 
 
 def _angle(a, b, c):

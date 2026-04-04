@@ -5,6 +5,7 @@ interface SkeletonCanvasProps {
   landmarks: NormalizedLandmark[] | null;
   videoRef: React.RefObject<HTMLVideoElement>;
   isViolating: boolean;
+  wsJointPoints?: [number, number, number[], string][] | null;
 }
 
 const POSE_CONNECTIONS: [number, number][] = [
@@ -16,7 +17,11 @@ const POSE_CONNECTIONS: [number, number][] = [
 
 const SPINE_POINTS = new Set([0, 11, 12, 23, 24]);
 
-export default function SkeletonCanvas({ landmarks, videoRef, isViolating }: SkeletonCanvasProps) {
+function rgbStr(c: number[]): string {
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+export default function SkeletonCanvas({ landmarks, videoRef, isViolating, wsJointPoints }: SkeletonCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -95,8 +100,36 @@ export default function SkeletonCanvas({ landmarks, videoRef, isViolating }: Ske
       ctx.restore();
     }
 
+    // WebSocket joint points from Python (coloured dots + labels)
+    if (wsJointPoints && wsJointPoints.length > 0) {
+      ctx.shadowBlur = 0;
+      ctx.font = 'bold 12px Outfit, sans-serif';
+      for (const [xn, yn, color, label] of wsJointPoints) {
+        const px = xn * canvas.width;
+        const py = yn * canvas.height;
+        const fill = rgbStr(color);
+
+        // Outer ring
+        ctx.beginPath();
+        ctx.arc(px, py, 10, 0, 2 * Math.PI);
+        ctx.fillStyle = fill;
+        ctx.fill();
+
+        // White border
+        ctx.beginPath();
+        ctx.arc(px, py, 10, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Label
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, px + 14, py + 4);
+      }
+    }
+
     ctx.shadowBlur = 0;
-  }, [landmarks, isViolating, videoRef]);
+  }, [landmarks, isViolating, videoRef, wsJointPoints]);
 
   return (
     <canvas

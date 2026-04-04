@@ -34,14 +34,14 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-KNEE_FLEX_MIN    = 50    # degrees — minimum knee bend
-KNEE_FLEX_MAX    = 130   # degrees — maximum knee bend
-BACK_FLAT_TOL    = 12    # degrees — shoulder-hip-knee flatness
-SPEED_TOL        = 0.04  # normalised — max movement per frame
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+KNEE_FLEX_MIN    = 40    # degrees — minimum knee bend (was 50)
+KNEE_FLEX_MAX    = 145   # degrees — maximum knee bend (was 130)
+BACK_FLAT_TOL    = 20    # degrees — shoulder-hip-knee flatness (was 12)
+SPEED_TOL        = 0.08  # normalised — max movement per frame (was 0.04)
 
-FLEX_THRESH      = 70    # knee angle below = flexed
-EXTEND_THRESH    = 110   # knee angle above = extended
+FLEX_THRESH      = 85    # knee angle below = flexed (was 70)
+EXTEND_THRESH    = 95    # knee angle above = extended (was 110)
 
 
 def _angle(a, b, c):

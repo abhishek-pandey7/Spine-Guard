@@ -38,15 +38,15 @@ mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
-SPINE_LEVEL_TOL   = 8     # degrees — shoulder–hip line from horizontal
-HIP_LEVEL_TOL     = 0.05  # normalised y — left vs right hip
-ARM_ANGLE_MIN     = 140   # shoulder–elbow–wrist OR shoulder to wrist horizontal angle
-TRUNK_ROTATION_TOL= 0.04  # normalised y — left vs right shoulder
-PLANTED_KNEE_MIN  = 75    # planted knee angle
-PLANTED_KNEE_MAX  = 105
+SPINE_LEVEL_TOL   = 12    # degrees — shoulder–hip line from horizontal (was 8)
+HIP_LEVEL_TOL     = 0.07  # normalised y — left vs right hip (was 0.05)
+ARM_ANGLE_MIN     = 130   # shoulder–elbow–wrist OR shoulder to wrist horizontal angle (was 140)
+TRUNK_ROTATION_TOL= 0.06  # normalised y — left vs right shoulder (was 0.04)
+PLANTED_KNEE_MIN  = 70    # planted knee angle (was 75)
+PLANTED_KNEE_MAX  = 110   # (was 105)
 
-EXTEND_ARM_Y_THRESH  = 0.08  # wrist rises above shoulder by this much (norm) = arm extended
-EXTEND_LEG_Y_THRESH  = 0.06  # ankle rises above hip by this much (norm) = leg extended
+EXTEND_ARM_Y_THRESH  = 0.05  # wrist rises above shoulder by this much (norm) = arm extended (was 0.08)
+EXTEND_LEG_Y_THRESH  = 0.04  # ankle rises above hip by this much (norm) = leg extended (was 0.06)
 
 
 def _angle(a, b, c):

@@ -35,13 +35,13 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-HIP_CONTACT_TOL  = 0.04  # normalised y — hips should stay low
-CHEST_ELEVATION  = 0.06  # normalised y — chest must rise
-ARM_EXTEND_MIN   = 150   # degrees — elbow angle when pressing up
-PELVIS_TILT_TOL  = 10    # degrees — pelvic rotation
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+HIP_CONTACT_TOL  = 0.08  # normalised y — hips should stay low (was 0.04)
+CHEST_ELEVATION  = 0.03  # normalised y — chest must rise (was 0.06)
+ARM_EXTEND_MIN   = 130   # degrees — elbow angle when pressing up (was 150)
+PELVIS_TILT_TOL  = 18    # degrees — pelvic rotation (was 10)
 
-UP_THRESH        = 0.04  # shoulder above hip to count as up
+UP_THRESH        = 0.02  # shoulder above hip to count as up (was 0.04)
 
 
 def _angle(a, b, c):

@@ -6,13 +6,13 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-brand">
-          <span className="brand-icon">🦴</span>
+          <span className="brand-icon">S</span>
           <div>
             <div className="brand-name">SpineGuard AI</div>
             <div className="brand-tagline">Post-Surgical Recovery</div>
           </div>
         </div>
-        <span className="privacy-badge">🔒 On-Device AI</span>
+        <span className="privacy-badge">[Secure] On-Device AI</span>
       </header>
       <main className="app-main">
         <Dashboard />

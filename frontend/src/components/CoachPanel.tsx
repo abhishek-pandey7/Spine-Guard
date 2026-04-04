@@ -1,8 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
 import { type Exercise } from '../types/exercise';
-import { Volume2, VolumeX, Play, Pause, Timer, RotateCcw, Repeat, Clock } from 'lucide-react';
+import { Volume2, VolumeX, Play, Pause, Timer, RotateCcw, Repeat, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { useSessionTracker } from '../hooks/useSessionTracker';
 import { useMediaPipe } from '../hooks/useMediaPipe';
+import { useExerciseWebSocket } from '../hooks/useExerciseWebSocket';
 
 interface CoachPanelProps {
     exercise: Exercise;
@@ -23,9 +24,10 @@ export default function CoachPanel({ exercise, phase }: CoachPanelProps) {
     const [isPlaying, setIsPlaying] = useState(true);
     const [isMuted, setIsMuted] = useState(true);
 
-    // AI SESSION LOGIC
     const { currentRep, endRep } = useSessionTracker();
     const { landmarks, initMediaPipe } = useMediaPipe(videoRef, endRep);
+
+    const { lastResult } = useExerciseWebSocket();
 
     const youtubeId = exercise.videoUrl ? getYouTubeId(exercise.videoUrl) : null;
     const isYouTube = !!youtubeId;
@@ -104,6 +106,55 @@ export default function CoachPanel({ exercise, phase }: CoachPanelProps) {
                     <strong style={{ color: '#818cf8' }}>Coach Tip: </strong>{exercise.coachCue}
                 </p>
             </div>
+
+            {/* PYTHON AI EVALUATION CHECKS */}
+            {lastResult && lastResult.checks && (
+                <div style={{
+                    padding: '12px 20px',
+                    borderTop: '1px solid rgba(255,255,255,0.07)',
+                    background: 'rgba(0,0,0,0.2)',
+                }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 1 }}>
+                        AI Form Analysis
+                    </div>
+                    {Object.entries(lastResult.checks).map(([name, [passed, value, cue]]) => (
+                        <div key={name} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginBottom: 4,
+                            fontSize: 12,
+                        }}>
+                            {passed
+                                ? <CheckCircle2 size={14} color="#4ade80" />
+                                : <XCircle size={14} color="#f87171" />
+                            }
+                            <span style={{
+                                color: passed ? '#4ade80' : '#f87171',
+                                textTransform: 'capitalize',
+                                flex: 1,
+                            }}>
+                                {name.replace(/_/g, ' ')}
+                            </span>
+                            <span style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: 11 }}>
+                                {typeof value === 'number' ? value.toFixed(1) : value}
+                            </span>
+                        </div>
+                    ))}
+                    {lastResult.rep_count > 0 && (
+                        <div style={{
+                            marginTop: 8,
+                            paddingTop: 8,
+                            borderTop: '1px solid rgba(255,255,255,0.1)',
+                            color: '#a7f3d0',
+                            fontSize: 13,
+                            fontWeight: 600,
+                        }}>
+                            Reps completed: {lastResult.rep_count}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

@@ -35,14 +35,14 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-KNEE_ANGLE_MIN   = 70     # degrees
-KNEE_ANGLE_MAX   = 115
-HIP_ANGLE_UP_MIN = 155    # shoulder–hip–knee at top of bridge
-HIP_ANGLE_SAG    = 145    # below this while "up" = sagging
-HIP_SYMMETRY_TOL = 0.04   # normalised y — left vs right hip height
-STATE_DOWN_THRESH = 130   # hip angle below = hips on floor
-STATE_UP_THRESH   = 155   # hip angle above = bridge achieved
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+KNEE_ANGLE_MIN   = 55     # degrees (was 70)
+KNEE_ANGLE_MAX   = 130    # (was 115)
+HIP_ANGLE_UP_MIN = 140    # shoulder–hip–knee at top of bridge (was 155)
+HIP_ANGLE_SAG    = 130    # below this while "up" = sagging (was 145)
+HIP_SYMMETRY_TOL = 0.07   # normalised y — left vs right hip height (was 0.04)
+STATE_DOWN_THRESH = 125   # relaxed: hip angle below = hips on floor (was 135)
+STATE_UP_THRESH   = 135   # relaxed: hip angle above = bridge achieved (was 148)
 
 
 def _angle(a, b, c):

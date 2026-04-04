@@ -86,9 +86,9 @@ export default function CalibrationScreen({ exercise, onComplete }: CalibrationS
           )}
         </div>
         <div className="cal-tips">
-          <p>📏 Stand with feet shoulder-width apart</p>
-          <p>👀 Look straight ahead</p>
-          <p>💪 Relax your shoulders naturally</p>
+          <p>[-] Stand with feet shoulder-width apart</p>
+          <p>[-] Look straight ahead</p>
+          <p>[-] Relax your shoulders naturally</p>
         </div>
       </div>
     </div>

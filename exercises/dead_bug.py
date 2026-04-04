@@ -35,14 +35,14 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-BACK_FLAT_TOL    = 10    # degrees — shoulder-hip-knee should stay flat
-KNEE_ANGLE_MIN   = 75
-KNEE_ANGLE_MAX   = 105
-HIP_ROTATION_TOL = 0.05  # normalised y — left vs right hip
-ARM_SPEED_TOL    = 0.03  # normalised — arm movement per frame
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+BACK_FLAT_TOL    = 20    # degrees — shoulder-hip-knee should stay flat (was 10)
+KNEE_ANGLE_MIN   = 60    # (was 75)
+KNEE_ANGLE_MAX   = 120   # (was 105)
+HIP_ROTATION_TOL = 0.08  # normalised y — left vs right hip (was 0.05)
+ARM_SPEED_TOL    = 0.06  # normalised — arm movement per frame (was 0.03)
 
-EXTEND_THRESH    = 0.05  # arm/leg movement threshold
+EXTEND_THRESH    = 0.03  # arm/leg movement threshold (was 0.05)
 
 
 def _angle(a, b, c):

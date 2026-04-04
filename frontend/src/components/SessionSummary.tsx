@@ -74,15 +74,15 @@ export default function SessionSummary({ data, onRestart }: SessionSummaryProps)
           <h3>Clinical Insights</h3>
           {score >= 80 ? (
             <p className="insight good">
-              ✅ Excellent form maintained. Your spine stayed neutral throughout most reps.
+              [OK] Excellent form maintained. Your spine stayed neutral throughout most reps.
             </p>
           ) : (
             <p className="insight warn">
-              ⚠️ Some form corrections were needed. Focus on keeping your back flat during the next session.
+              [!] Some form corrections were needed. Focus on keeping your back flat during the next session.
             </p>
           )}
           <p className="insight info">
-            📊 This session data has been sent to your care team's dashboard.
+            [DATA] This session data has been sent to your care team's dashboard.
           </p>
         </div>
 

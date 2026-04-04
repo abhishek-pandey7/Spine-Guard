@@ -25,10 +25,10 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-HIP_HEEL_TOL    = 0.10   # normalised y — hip close to heel
-SPINE_REACH_MIN = 15     # degrees — shoulder forward from hip
-ARM_REACH_MIN   = 0.05   # normalised x — wrist ahead of shoulder
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+HIP_HEEL_TOL    = 0.18   # normalised y — hip close to heel (was 0.10)
+SPINE_REACH_MIN = 8      # degrees — shoulder forward from hip (was 15)
+ARM_REACH_MIN   = 0.02   # normalised x — wrist ahead of shoulder (was 0.05)
 
 
 def _angle(a, b, c):

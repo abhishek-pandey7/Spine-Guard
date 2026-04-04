@@ -34,13 +34,13 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-ELBOW_ANGLE_MIN  = 75
-ELBOW_ANGLE_MAX  = 105
-ARM_PATH_TOL     = 0.05  # normalised x — arm should stay in vertical line
-BACK_FLAT_TOL    = 10    # degrees — shoulder-hip alignment
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+ELBOW_ANGLE_MIN  = 60    # (was 75)
+ELBOW_ANGLE_MAX  = 120   # (was 105)
+ARM_PATH_TOL     = 0.10  # normalised x — arm should stay in vertical line (was 0.05)
+BACK_FLAT_TOL    = 18    # degrees — shoulder-hip alignment (was 10)
 
-UP_THRESH        = 0.06  # wrist rise above shoulder to count as up
+UP_THRESH        = 0.03  # wrist rise above shoulder to count as up (was 0.06)
 
 
 def _angle(a, b, c):

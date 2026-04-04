@@ -34,12 +34,12 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-TUCK_DISTANCE    = 0.02  # normalised x — nose movement backward
-HEAD_TILT_TOL    = 0.03  # normalised y — ear level change
-SHOULDER_RISE_TOL= 0.03  # normalised y — shoulder shouldn't rise
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+TUCK_DISTANCE    = 0.012 # normalised x — nose movement backward (was 0.02)
+HEAD_TILT_TOL    = 0.05  # normalised y — ear level change (was 0.03)
+SHOULDER_RISE_TOL= 0.05  # normalised y — shoulder shouldn't rise (was 0.03)
 
-TUCK_THRESH      = 0.015 # minimum nose movement to count as tuck
+TUCK_THRESH      = 0.008 # minimum nose movement to count as tuck (was 0.015)
 
 
 def _angle(a, b, c):
@@ -67,18 +67,21 @@ def evaluate(landmarks, baseline_nose_x=None, baseline_ear_y=None, state=None):
     ear = [(l_ear[0]+r_ear[0])/2, (l_ear[1]+r_ear[1])/2]
     shoulder = [(l_shoulder[0]+r_shoulder[0])/2, (l_shoulder[1]+r_shoulder[1])/2]
 
+    # Auto-capture baselines on first frame if not provided
+    if "baseline_nose_x" not in state:
+        state["baseline_nose_x"] = nose[0]
+    if "baseline_ear_y" not in state:
+        state["baseline_ear_y"] = ear[1]
+
+    bn_x = state.get("baseline_nose_x", nose[0])
+    be_y = state.get("baseline_ear_y", ear[1])
+
     # Tuck detection: nose moving backward (x decreases in side view)
-    if baseline_nose_x is not None:
-        tuck_dist = baseline_nose_x - nose[0]
-    else:
-        tuck_dist = 0.0
+    tuck_dist = bn_x - nose[0]
     tuck_ok = tuck_dist >= TUCK_DISTANCE
 
     # Head tilt: ear y-position change
-    if baseline_ear_y is not None:
-        head_tilt = abs(ear[1] - baseline_ear_y)
-    else:
-        head_tilt = 0.0
+    head_tilt = abs(ear[1] - be_y)
     tilt_ok = head_tilt <= HEAD_TILT_TOL
 
     # Shoulder rise

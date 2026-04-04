@@ -28,11 +28,11 @@ mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-KNEE_ANGLE_MIN   = 70    # degrees — allow a bit of slack
-KNEE_ANGLE_MAX   = 110
-TILT_ANGLE_MIN   = 150   # hip-knee-ankle angle; when flat/tilted, hip is more extended
-SHOULDER_DRIFT_Y = 0.05  # normalised units — shoulder shouldn't rise
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+KNEE_ANGLE_MIN   = 60    # degrees — allow more slack (was 70)
+KNEE_ANGLE_MAX   = 120   # (was 110)
+TILT_ANGLE_MIN   = 130   # hip-knee-ankle angle; more lenient (was 150)
+SHOULDER_DRIFT_Y = 0.08  # normalised units — shoulder shouldn't rise (was 0.05)
 
 
 def _angle(a, b, c):
@@ -59,6 +59,15 @@ def evaluate(landmarks, baseline_shoulder_y=None, state=None):
         primary_cue  : str    — the most important voice cue this frame
         joint_points : list   — [(x_norm, y_norm, color_bgr, label)] for overlay dots
     """
+    if state is None:
+        state = {}
+    
+    # Auto-capture baseline on first frame
+    if "baseline_shoulder_y" not in state:
+        # Use the average of left and right for robustness
+        l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
+        r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+        state["baseline_shoulder_y"] = (l_shoulder[1] + r_shoulder[1]) / 2
     # Use the average of left and right for robustness
     l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
     r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
@@ -78,12 +87,12 @@ def evaluate(landmarks, baseline_shoulder_y=None, state=None):
     knee_angle  = _angle(hip, knee, ankle)
     tilt_angle  = _angle(shoulder, hip, knee)   # torso–thigh angle at hip
     shoulder_y  = shoulder[1]
+    bs_y = state.get("baseline_shoulder_y", shoulder_y)
 
     # ── Per-check results ─────────────────────────────────────────────────────
     knee_ok     = KNEE_ANGLE_MIN <= knee_angle <= KNEE_ANGLE_MAX
     tilt_ok     = tilt_angle >= TILT_ANGLE_MIN
-    shoulder_ok = (baseline_shoulder_y is None) or \
-                  (abs(shoulder_y - baseline_shoulder_y) < SHOULDER_DRIFT_Y)
+    shoulder_ok = abs(shoulder_y - bs_y) < SHOULDER_DRIFT_Y
 
     GREEN  = (0, 220, 80)
     YELLOW = (0, 200, 255)

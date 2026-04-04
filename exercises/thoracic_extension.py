@@ -34,12 +34,12 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-THORACIC_EXT_MIN = 8     # degrees — upper back extension
-LUMBAR_STABLE_TOL= 8     # degrees — lower back should stay neutral
-CHEST_OPEN_TOL   = 0.04  # normalised — shoulder backward movement
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+THORACIC_EXT_MIN = 4     # degrees — upper back extension (was 8)
+LUMBAR_STABLE_TOL= 15    # degrees — lower back should stay neutral (was 8)
+CHEST_OPEN_TOL   = 0.02  # normalised — shoulder backward movement (was 0.04)
 
-EXTEND_THRESH    = 5     # degrees to count as extending
+EXTEND_THRESH    = 2     # degrees to count as extending (was 5)
 
 
 def _angle(a, b, c):

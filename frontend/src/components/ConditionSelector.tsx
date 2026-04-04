@@ -7,13 +7,13 @@ interface ConditionSelectorProps {
 }
 
 const CONDITIONS: { id: BackCondition; name: string; description: string; icon: string }[] = [
-  { id: 'Muscle Strain', name: 'Muscle Strain', description: 'Pain after lifting or sudden move', icon: '🏋️' },
-  { id: 'Sciatica', name: 'Sciatica', description: 'Pain radiating down the leg', icon: '⚡' },
-  { id: 'Herniated Disc', name: 'Herniated Disc', description: 'Nerve compression or disc bulge', icon: '💿' },
-  { id: 'Postural', name: 'Postural Pain', description: 'Stiffness from sitting or standing', icon: '💻' },
-  { id: 'Chronic', name: 'Chronic Pain', description: 'Pain lasting more than 3 months', icon: '📅' },
-  { id: 'Facet Joint', name: 'Facet Joint', description: 'Sharp pain when leaning back', icon: '🦴' },
-  { id: 'Stenosis', name: 'Spinal Stenosis', description: 'Numbness or weakness when walking', icon: '🚶' },
+  { id: 'Muscle Strain', name: 'Muscle Strain', description: 'Pain after lifting or sudden move', icon: '' },
+  { id: 'Sciatica', name: 'Sciatica', description: 'Pain radiating down the leg', icon: '' },
+  { id: 'Herniated Disc', name: 'Herniated Disc', description: 'Nerve compression or disc bulge', icon: '' },
+  { id: 'Postural', name: 'Postural Pain', description: 'Stiffness from sitting or standing', icon: '' },
+  { id: 'Chronic', name: 'Chronic Pain', description: 'Pain lasting more than 3 months', icon: '' },
+  { id: 'Facet Joint', name: 'Facet Joint', description: 'Sharp pain when leaning back', icon: '' },
+  { id: 'Stenosis', name: 'Spinal Stenosis', description: 'Numbness or weakness when walking', icon: '' },
 ];
 
 export default function ConditionSelector({ onSelect }: ConditionSelectorProps) {

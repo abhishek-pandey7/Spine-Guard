@@ -48,7 +48,7 @@ export default function CheckInModal({ onConfirm }: CheckInModalProps) {
             <span className="pain-level-text">{selected}/10 — {PAIN_LABELS[selected]}</span>
             {selected > 4 && (
               <p className="pain-warning">
-                ⚠️ Pain above 4. We'll start with gentle Phase 1 exercises only.
+                [!] Pain above 4. We'll start with gentle Phase 1 exercises only.
               </p>
             )}
           </div>
