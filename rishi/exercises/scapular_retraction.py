@@ -34,13 +34,13 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-SHOULDER_SQUEEZE = 0.03  # normalised x — shoulder width reduction
-SYMMETRY_TOL     = 0.02  # normalised — left vs right movement difference
-SHRUG_TOL        = 0.03  # normalised y — shoulder shouldn't rise
-TWIST_TOL        = 0.03  # normalised — hip rotation
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+SHOULDER_SQUEEZE = 0.015 # normalised x — shoulder width reduction (was 0.03)
+SYMMETRY_TOL     = 0.04  # normalised — left vs right movement difference (was 0.02)
+SHRUG_TOL        = 0.06  # normalised y — shoulder shouldn't rise (was 0.03)
+TWIST_TOL        = 0.06  # normalised — hip rotation (was 0.03)
 
-SQUEEZE_THRESH   = 0.02  # minimum squeeze to detect
+SQUEEZE_THRESH   = 0.008 # minimum squeeze to detect (was 0.02)
 
 
 def _angle(a, b, c):

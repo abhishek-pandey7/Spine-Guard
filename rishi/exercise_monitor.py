@@ -7,12 +7,17 @@ Usage
 ─────
     python exercise_monitor.py [exercise] [reference_video.mp4]
 
-    exercise options : pelvic_tilt | glute_bridge | bird_dog
+    exercise options : pelvic_tilt | glute_bridge | bird_dog | chin_tuck
+                       cat_cow | child_pose | dead_bug | hamstring_stretch
+                       hip_abduction | lunge | mckenzie_pressup | nerve_glide
+                       piriformis_stretch | plank | resistance_band_row
+                       scapular_retraction | squat | standing_back_extension
+                       thoracic_extension | wall_angels | walking
                        (default: glute_bridge)
 
     e.g.
-        python exercise_monitor.py glute_bridge
-        python exercise_monitor.py bird_dog  ref_bird_dog.mp4
+        python exercise_monitor.py chin_tuck
+        python exercise_monitor.py glute_bridge ref_glute_bridge.mp4
 
 Keys during session
 ───────────────────
@@ -49,9 +54,27 @@ FEEDBACK_COOLDOWN = 4
 
 # ── Exercise registry ─────────────────────────────────────────────────────────
 EXERCISE_MAP = {
-    "pelvic_tilt":  "exercises.pelvic_tilt",
-    "glute_bridge": "exercises.glute_bridge",
-    "bird_dog":     "exercises.bird_dog",
+    "pelvic_tilt":         "exercises.pelvic_tilt",
+    "glute_bridge":        "exercises.glute_bridge",
+    "bird_dog":            "exercises.bird_dog",
+    "chin_tuck":           "exercises.chin_tuck",
+    "cat_cow":             "exercises.cat_cow",
+    "child_pose":          "exercises.child_pose",
+    "dead_bug":            "exercises.dead_bug",
+    "hamstring_stretch":   "exercises.hamstring_stretch",
+    "hip_abduction":       "exercises.hip_abduction",
+    "lunge":               "exercises.lunge",
+    "mckenzie_pressup":    "exercises.mckenzie_pressup",
+    "nerve_glide":         "exercises.nerve_glide",
+    "piriformis_stretch":  "exercises.piriformis_stretch",
+    "plank":               "exercises.plank",
+    "resistance_band_row": "exercises.resistance_band_row",
+    "scapular_retraction": "exercises.scapular_retraction",
+    "squat":               "exercises.squat",
+    "standing_back_extension": "exercises.standing_back_extension",
+    "thoracic_extension":  "exercises.thoracic_extension",
+    "wall_angels":         "exercises.wall_angels",
+    "walking":             "exercises.walking",
 }
 KEY_MAP = {
     ord('1'): "pelvic_tilt",
@@ -206,7 +229,7 @@ def draw_check_panel(frame, checks, rep_count, exercise_name):
     for i, (check_name, (passed, value, _cue)) in enumerate(checks.items()):
         y     = y0 + 20 + (i + 1) * 22
         color = (0, 220, 80) if passed else (0, 80, 255)
-        icon  = "✓" if passed else "✗"
+        icon  = "[OK]" if passed else "[X]"
         label = check_name.replace("_", " ").title()
 
         if isinstance(value, float):

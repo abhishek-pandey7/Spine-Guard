@@ -41,8 +41,8 @@ KNEE_ANGLE_MIN   = 75
 KNEE_ANGLE_MAX   = 105
 SHOULDER_DRIFT   = 0.06  # normalised — shoulder over wrist
 
-CAT_STATE_THRESH  = 8    # shoulder-hip angle above horizontal
-COW_STATE_THRESH  = -8   # shoulder-hip angle below horizontal
+CAT_STATE_THRESH  = 5    # relaxed: shoulder-hip angle above horizontal (was 8)
+COW_STATE_THRESH  = -5   # relaxed: shoulder-hip angle below horizontal (was -8)
 
 
 def _angle(a, b, c):

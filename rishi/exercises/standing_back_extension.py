@@ -34,13 +34,13 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-EXTENSION_MIN    = 5     # degrees — minimum backward lean
-EXTENSION_MAX    = 25    # degrees — maximum safe backward lean
-KNEE_BEND_TOL    = 20    # degrees — knees should stay nearly straight
-BALANCE_TOL      = 0.06  # normalised — hip sway
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+EXTENSION_MIN    = 2     # degrees — minimum backward lean (was 5)
+EXTENSION_MAX    = 35    # degrees — maximum safe backward lean (was 25)
+KNEE_BEND_TOL    = 30    # degrees — knees should stay nearly straight (was 20)
+BALANCE_TOL      = 0.10  # normalised — hip sway (was 0.06)
 
-EXTEND_THRESH    = 3     # degrees to count as extending
+EXTEND_THRESH    = 1.5   # degrees to count as extending (was 3)
 
 
 def _angle(a, b, c):

@@ -32,13 +32,13 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-POSTURE_TOL      = 15    # degrees — spine from vertical
-STRIDE_SYMM_TOL  = 0.08  # normalised — left vs right knee height difference
-ARM_SWING_MIN    = 0.02  # normalised — minimum arm movement
-ARM_SWING_MAX    = 0.15  # normalised — maximum arm movement
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+POSTURE_TOL      = 25    # degrees — spine from vertical (was 15)
+STRIDE_SYMM_TOL  = 0.14  # normalised — left vs right knee height difference (was 0.08)
+ARM_SWING_MIN    = 0.01  # normalised — minimum arm movement (was 0.02)
+ARM_SWING_MAX    = 0.22  # normalised — maximum arm movement (was 0.15)
 
-WALK_THRESH      = 0.03  # minimum movement to detect walking
+WALK_THRESH      = 0.015 # minimum movement to detect walking (was 0.03)
 
 
 def _angle(a, b, c):

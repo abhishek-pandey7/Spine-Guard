@@ -34,12 +34,12 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-ELBOW_PATH_TOL   = 0.06  # normalised x — elbow should stay close to body
-SHOULDER_RETRACT = 0.03  # normalised x — shoulder backward movement
-TORSO_LEAN_TOL   = 12    # degrees — torso shouldn't lean excessively
+# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
+ELBOW_PATH_TOL   = 0.10  # normalised x — elbow should stay close to body (was 0.06)
+SHOULDER_RETRACT = 0.015 # normalised x — shoulder backward movement (was 0.03)
+TORSO_LEAN_TOL   = 20    # degrees — torso shouldn't lean excessively (was 12)
 
-PULL_THRESH      = 0.04  # wrist movement toward body to count as pull
+PULL_THRESH      = 0.02  # wrist movement toward body to count as pull (was 0.04)
 
 
 def _angle(a, b, c):
