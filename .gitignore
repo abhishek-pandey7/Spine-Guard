@@ -3,13 +3,15 @@ node_modules/
 .pnp
 .pnp.js
 
-# ── Python & Virtual Envs ──────────────────────────────────────────────────────
+# ── Python ─────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 *.egg
 *.egg-info/
+
+# ── Virtual Environments ──────────────────────────────────────────────────────
 venv/
 env/
 .venv/
@@ -23,16 +25,16 @@ ENV/
 .env.production.local
 *.key
 
-# ── Production / Build ────────────────────────────────────────────────────────
+# ── Build / Distribution ──────────────────────────────────────────────────────
 dist/
 build/
 coverage/
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-*.log
 
 # ── IDE / Editor ──────────────────────────────────────────────────────────────
 .vscode/
