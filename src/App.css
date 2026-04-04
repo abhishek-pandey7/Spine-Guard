@@ -1,0 +1,321 @@
+/* ── App.css — SpineIQ Setup Screen ──────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --google-btn-bg: #ffffff;
+  --google-btn-text: #1f2937;
+  --google-btn-border: #e5e7eb;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #08090e;
+  color: #e2e8f0;
+}
+
+/* ── Fullscreen layout ── */
+.setup-bg {
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background:
+    radial-gradient(ellipse 70% 50% at 20% 20%, rgba(124, 58, 237, 0.15), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(99, 102, 241, 0.12), transparent),
+    #08090e;
+}
+
+/* ── Setup Card ── */
+.setup-card {
+  background: rgba(14, 15, 22, 0.96);
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  border-radius: 24px;
+  padding: 40px 40px 32px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.06),
+    0 24px 64px rgba(0, 0, 0, 0.5),
+    0 0 80px rgba(124, 58, 237, 0.08);
+  animation: cardIn 0.4s ease-out;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Logo / Header ── */
+.setup-logo {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.6));
+}
+
+.setup-title {
+  font-size: 32px;
+  font-weight: 700;
+  text-align: center;
+  background: linear-gradient(135deg, #a78bfa, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.8px;
+  margin-bottom: 6px;
+}
+
+.setup-subtitle {
+  text-align: center;
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 32px;
+}
+
+/* ── Form ── */
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-row label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.1px;
+}
+
+.form-row .req {
+  color: #f87171;
+  margin-left: 2px;
+}
+
+.form-row .hint {
+  color: #4b5563;
+  font-weight: 400;
+}
+
+.form-row input,
+.form-row select {
+  width: 100%;
+  background: rgba(20, 20, 35, 0.8);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 14.5px;
+  font-family: inherit;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.form-row select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8l-4-4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+.form-row input::placeholder { color: #374151; }
+
+.form-row input:focus,
+.form-row select:focus {
+  border-color: rgba(139, 92, 246, 0.55);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+/* Hide number input arrows */
+.form-row input[type=number]::-webkit-inner-spin-button,
+.form-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+.two-col {
+  flex-direction: row !important;
+  gap: 14px;
+}
+
+.two-col > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* ── Start Button ── */
+.start-btn {
+  margin-top: 6px;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: -0.2px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.45);
+}
+
+.start-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(124, 58, 237, 0.6);
+}
+
+.start-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Footer note ── */
+.setup-note {
+  text-align: center;
+  font-size: 12px;
+  color: #374151;
+  margin-top: 20px;
+}
+
+/* ── Responsive ── */
+/* ── Auth / Google Button ── */
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  border: 1px solid var(--google-btn-border);
+  border-radius: 12px;
+  background: var(--google-btn-bg);
+  color: var(--google-btn-text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.google-btn:hover {
+  background: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+
+/* ── Onboarding / Role Selector ── */
+.role-selector {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.role-selector button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(139, 92, 246, 0.05);
+  color: #94a3b8;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.role-selector button.active {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.6);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+}
+
+/* ── Setup Header Row (Logged In State) ── */
+.setup-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.logged-in-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-icon {
+  font-size: 24px;
+  background: rgba(139, 92, 246, 0.15);
+  padding: 8px;
+  border-radius: 50%;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.user-role {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logout-mini-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.logout-mini-btn:hover {
+  color: #f87171;
+}
+
+/* ── Loader ── */
+.loader {
+  font-size: 48px;
+  animation: rotate 2s infinite linear;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 540px) {
+  .setup-card { padding: 28px 20px 24px; }
+  .two-col { flex-direction: column !important; }
+}

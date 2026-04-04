@@ -1,4 +1,13 @@
-opencv-python==4.13.0.92
-mediapipe==0.10.14
-numpy==2.2.6
-pyttsx3==2.98
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+python-dotenv>=1.0.0
+langgraph>=0.1.0
+langchain-google-genai>=1.0.0
+langchain-core>=0.2.0
+google-generativeai>=0.7.0
+pydantic>=2.0.0
+supabase>=2.13.0
+pinecone>=7.3.0
+langchain-pinecone>=0.2.13
+pypdf>=6.9.2

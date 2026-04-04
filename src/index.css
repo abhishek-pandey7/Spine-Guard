@@ -1,0 +1,18 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #08090e;
+}
+
+#root {
+  width: 100%;
+  min-height: 100dvh;
+  border: none;
+  text-align: left;
+}
