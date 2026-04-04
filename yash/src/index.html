@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpineViz AI — MRI-Guided Spine Analysis</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="./css/base.css">
+    <link rel="stylesheet" href="./css/layout.css">
+    <link rel="stylesheet" href="./css/components.css">
+
+    <!-- Sketchfab Viewer API -->
+    <script src="https://static.sketchfab.com/api/sketchfab-viewer-1.12.1.js"></script>
+</head>
+
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  HEADER                                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <header>
+        <div class="logo">
+            Spine<em>Viz</em>
+            <span class="logo-badge">AI</span>
+        </div>
+        <div class="hdr-mid">MRI-Guided Spinal Diagnosis</div>
+        <div class="hdr-right">
+            <div id="api-key-wrap">
+                <span class="key-label">Gemini API Key:</span>
+                <input id="api-key-inp" type="password" placeholder="Paste your free Gemini API key…"
+                    autocomplete="off" />
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  THREE-COLUMN LAYOUT                                    -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="layout">
+
+        <!-- ── LEFT PANEL ───────────────────────────────────────── -->
+        <div class="left">
+
+            <!-- MRI Upload -->
+            <div class="left-section">
+                <div class="sec-label">MRI Scan Upload</div>
+
+                <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-inp').click()">
+                    <span class="upload-ico">🩻</span>
+                    <div class="upload-title">Upload MRI Image</div>
+                    <div class="upload-sub">JPEG · PNG · DICOM screenshot<br>Drag &amp; drop or click</div>
+                </div>
+                <input type="file" id="file-inp" accept="image/*">
+
+                <div id="preview-wrap">
+                    <img id="mri-preview" src="" alt="MRI Preview" />
+                    <button class="preview-remove" onclick="clearMRI()">✕</button>
+                </div>
+
+                <button id="analyse-btn" disabled onclick="analyseMRI()">
+                    <span class="btn-ico">🔬</span>
+                    Analyse with Gemini AI
+                </button>
+
+                <div class="scan-bar" id="scan-bar">
+                    <div class="scan-fill"></div>
+                </div>
+
+                <!-- AI Result summary (left panel) -->
+                <div id="ai-result">
+                    <div class="result-box">
+                        <div class="result-row">
+                            <span class="result-key">Affected Level</span>
+                            <span class="result-val highlight" id="res-level">—</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-key">Confidence</span>
+                            <span class="result-val" id="res-conf">—</span>
+                        </div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="conf-fill" style="width:0%"></div>
+                        </div>
+                        <div class="result-finding" id="res-finding">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Region Selector -->
+            <div class="left-section">
+                <div class="sec-label">Spinal Regions</div>
+
+                <button class="reg-btn" data-region="cervical" onclick="selectRegion('cervical')"
+                    style="--clr:var(--c-cervical);--rgb:255,140,66">
+                    <div class="reg-dot"></div>
+                    <div>
+                        <div class="reg-name">Cervical</div>
+                        <div class="reg-sub">C1 – C7 · Neck</div>
+                    </div>
+                    <span class="reg-flag">⚠ Affected</span>
+                </button>
+
+                <button class="reg-btn" data-region="thoracic" onclick="selectRegion('thoracic')"
+                    style="--clr:var(--c-thoracic);--rgb:58,143,255">
+                    <div class="reg-dot"></div>
+                    <div>
+                        <div class="reg-name">Thoracic</div>
+                        <div class="reg-sub">T1 – T12 · Mid-Back</div>
+                    </div>
+                    <span class="reg-flag">⚠ Affected</span>
+                </button>
+
+                <button class="reg-btn" data-region="lumbar" onclick="selectRegion('lumbar')"
+                    style="--clr:var(--c-lumbar);--rgb:0,212,170">
+                    <div class="reg-dot"></div>
+                    <div>
+                        <div class="reg-name">Lumbar</div>
+                        <div class="reg-sub">L1 – L5 · Lower Back</div>
+                    </div>
+                    <span class="reg-flag">⚠ Affected</span>
+                </button>
+
+                <button class="reg-btn" data-region="sacral" onclick="selectRegion('sacral')"
+                    style="--clr:var(--c-sacral);--rgb:199,125,255">
+                    <div class="reg-dot"></div>
+                    <div>
+                        <div class="reg-name">Sacral / Coccyx</div>
+                        <div class="reg-sub">S1 – S5 · Pelvis</div>
+                    </div>
+                    <span class="reg-flag">⚠ Affected</span>
+                </button>
+            </div>
+
+            <div class="left-hint">
+                <div class="hint-text">
+                    <b>Upload</b> patient MRI<br>
+                    <b>Gemini AI</b> detects region<br>
+                    <b>Red glow</b> = affected vertebra<br>
+                    <b>Drag</b> to rotate · <b>Scroll</b> zoom<br>
+                    <b>Click</b> a region to explore
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 3D VIEWER (Sketchfab) ─────────────────────────────── -->
+        <div class="mid">
+            <!-- Sketchfab embed -->
+            <div class="sketchfab-embed-wrapper">
+                <iframe id="sketchfab-iframe" title="The human spinal column" frameborder="0" allowfullscreen
+                    mozallowfullscreen="true" webkitallowfullscreen="true"
+                    allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking
+                    execution-while-out-of-viewport execution-while-not-rendered web-share>
+                </iframe>
+            </div>
+
+            <!-- Overlays -->
+            <div class="canvas-label">Interactive 3D Spine · Sketchfab Model</div>
+
+            <div id="region-overlay">
+                <div class="overlay-card" id="overlay-card">
+                    <div class="overlay-label" id="overlay-label">SELECT REGION</div>
+                    <div class="overlay-level" id="overlay-level" style="color:var(--text2)">—</div>
+                    <div class="overlay-finding" id="overlay-finding"></div>
+                </div>
+            </div>
+
+            <!-- AI popup (shown after analysis) -->
+            <div id="affected-popup">
+                <div class="overlay-card affected">
+                    <div class="popup-label" id="popup-label">⚠ AI Detected</div>
+                    <div class="popup-level" id="popup-level">—</div>
+                    <div class="popup-finding" id="popup-finding">—</div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="leg-item">
+                    <div class="leg-dot" style="background:#ff8c42"></div>Cervical
+                </div>
+                <div class="leg-item">
+                    <div class="leg-dot" style="background:#3a8fff"></div>Thoracic
+                </div>
+                <div class="leg-item">
+                    <div class="leg-dot" style="background:#00d4aa"></div>Lumbar
+                </div>
+                <div class="leg-item">
+                    <div class="leg-dot" style="background:#c77dff"></div>Sacral
+                </div>
+                <div class="leg-item">
+                    <div class="leg-dot" style="background:#ff4455;box-shadow:0 0 6px #ff4455"></div>Affected
+                </div>
+            </div>
+        </div>
+
+        <!-- ── RIGHT PANEL ───────────────────────────────────────── -->
+        <div class="right">
+            <div class="rp-head">
+                <div class="rp-tag">
+                    <div class="rp-tag-dot" id="rp-dot" style="background:var(--text3)"></div>
+                    <span id="rp-tag"
+                        style="color:var(--text3);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase">
+                        SELECT A REGION
+                    </span>
+                </div>
+                <div class="rp-title" id="rp-title">Spinal Surgery<br>Reference</div>
+                <div class="rp-sub" id="rp-sub">
+                    Upload a patient MRI scan to let Gemini AI automatically detect the affected spinal
+                    region — or click any region manually to explore surgical options.
+                </div>
+            </div>
+
+            <div id="diag-banner">
+                <div class="diag-banner-title">🔴 AI Diagnosis</div>
+                <div class="diag-banner-val" id="diag-banner-val">—</div>
+            </div>
+
+            <div class="rp-body" id="rp-body">
+                <div class="empty">
+                    <div class="empty-ico">🧬</div>
+                    <div class="empty-title">Awaiting Analysis</div>
+                    <div class="empty-sub">
+                        Upload an MRI scan and<br>
+                        paste your Gemini API key<br>
+                        to begin AI diagnosis
+                    </div>
+                </div>
+            </div>
+
+            <div class="disclaimer">⚕ For educational &amp; demonstration use only — not clinical advice</div>
+        </div>
+
+    </div><!-- /.layout -->
+
+    <div id="toast"></div>
+
+    <!-- ── AFFECTED POPUP STYLES (positioned inside .mid) ─────── -->
+    <style>
+        #affected-popup {
+            position: absolute;
+            bottom: 60px;
+            right: 24px;
+            display: none;
+            z-index: 20;
+            pointer-events: none;
+        }
+    </style>
+
+    <!-- ── MODULE ENTRY POINT ─────────────────────────────────── -->
+    <script type="module" src="./js/app.js"></script>
+
+</body>
+
+</html>

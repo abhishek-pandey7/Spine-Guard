@@ -1,0 +1,127 @@
+:root {
+  --bg-color-1: #04080e;
+  --bg-color-2: #080c14;
+  --surface: rgba(14, 21, 35, 0.4);
+  --border: rgba(255, 255, 255, 0.05);
+  --accent: #3a8fff;
+  --text: #ffffff;
+  --text2: #94a3b8;
+  --text3: #64748b;
+  --font-serif: 'DM Serif Display', serif;
+  --font-mono: 'DM Mono', monospace;
+  --font-sans: 'Instrument Sans', 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--bg-color-1);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+body::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 50%, rgba(58, 143, 255, 0.05) 0%, transparent 40%),
+              radial-gradient(circle at 20% 80%, rgba(0, 212, 170, 0.05) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(199, 125, 255, 0.05) 0%, transparent 50%);
+  animation: rotateGradient 60s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotateGradient {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.glass {
+  background: var(--surface);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+.stat-card {
+  background: rgba(255,255,255,0.015);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.stat-card:hover {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.1);
+  transform: translateY(-5px);
+}
+
+.spine-canvas-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+/* New Docked State: Moves to top-left and gets smaller */
+.spine-canvas-container.docked {
+  width: 320px;
+  height: 320px;
+  top: 20px;
+  left: 20px;
+  z-index: 60;
+  pointer-events: none;
+  filter: drop-shadow(0 0 30px rgba(0,0,0,0.5));
+}
+
+/* But allow the canvas inside to be interactive if needed */
+.spine-canvas-container.docked canvas {
+  pointer-events: auto;
+}
+
+@media (max-width: 1024px) {
+  .spine-canvas-container.docked {
+    width: 300px;
+    height: 300px;
+    top: 20%;
+  }
+}
+
+@media (max-width: 768px) {
+  .spine-canvas-container.docked {
+    display: none; /* Hide 3D on small mobile for space */
+  }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+}
