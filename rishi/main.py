@@ -18,8 +18,8 @@ from chatbot_graph import spine_graph
 load_dotenv()
 
 # --- Config ---
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
+SUPABASE_KEY = os.getenv("VITE_SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("Missing Supabase environment variables")
@@ -35,6 +35,29 @@ app.add_middleware(
 )
 
 # Vector store disabled — RAG to be re-enabled post hackathon
+
+# --- Helpers ---
+from langchain_google_genai import ChatGoogleGenerativeAI as _TitleLLM
+from langchain_core.messages import HumanMessage as _HM
+
+_title_llm = _TitleLLM(model="gemini-2.0-flash", max_output_tokens=20)
+
+def generate_chat_title(message: str) -> str:
+    """Use the LLM to produce a concise 3-5 word topic title from the first user message."""
+    try:
+        prompt = (
+            "Generate a concise, generalised topic title (3 to 5 words, no punctuation, no quotes) "
+            "that summarises what this spine-recovery patient message is about. "
+            "Only return the title, nothing else.\n\n"
+            f"Patient message: {message[:300]}"
+        )
+        resp = _title_llm.invoke([_HM(content=prompt)])
+        title = resp.content.strip().strip('"\'')
+        return (title[:40] + "…") if len(title) > 42 else (title or "Recovery Chat")
+    except Exception:
+        # Fallback to keyword extraction
+        words = message.strip().split()[:5]
+        return " ".join(words) or "Recovery Chat"
 
 # --- Models ---
 class ChatRequest(BaseModel):
@@ -64,6 +87,13 @@ async def create_chat(request: NewChatRequest):
     }).execute()
     return res.data[0] if res.data else None
 
+@app.delete("/chats/{chat_id}")
+async def delete_chat(chat_id: str):
+    """Delete a chat and all its messages (removes context entirely)."""
+    supabase.table("messages").delete().eq("chat_id", chat_id).execute()
+    supabase.table("chats").delete().eq("id", chat_id).execute()
+    return {"success": True}
+
 @app.get("/chats/{chat_id}/history")
 async def get_chat_history(chat_id: str):
     """Retrieve full message history for a specific chat."""
@@ -91,7 +121,10 @@ async def chat(request: ChatRequest):
     current_msg = HumanMessage(content=request.message)
     full_messages = history_res + [current_msg]
     
-    # 3. Store User message in Supabase
+    # 3. Check if first message (for auto-title), then store user message
+    existing = supabase.table("messages").select("id").eq("chat_id", request.chat_id).limit(1).execute()
+    is_first_message = len(existing.data) == 0
+
     supabase.table("messages").insert({
         "chat_id": request.chat_id,
         "role": "user",
@@ -118,7 +151,13 @@ async def chat(request: ChatRequest):
         "is_red_flag": red_flag
     }).execute()
     
-    return {"response": ai_response, "red_flag": red_flag}
+    # Auto-rename chat from first message keywords
+    new_title = None
+    if is_first_message:
+        new_title = generate_chat_title(request.message)
+        supabase.table("chats").update({"title": new_title}).eq("id", request.chat_id).execute()
+
+    return {"response": ai_response, "red_flag": red_flag, "new_title": new_title}
 
 @app.post("/chat/upload")
 async def chat_with_file(
@@ -134,22 +173,13 @@ async def chat_with_file(
     
     context = json.loads(patient_context)
     
-    # PDF Ingestion into Pinecone
+    # Extract PDF text to pass directly to the LLM
+    pdf_text = ""
     if file.content_type == "application/pdf":
         pdf_file = io.BytesIO(file_bytes)
         reader = PdfReader(pdf_file)
-        text = ""
         for page in reader.pages:
-            text += page.extract_text() or ""
-        
-        # Chunk and Upsert
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-        chunks = text_splitter.split_text(text)
-        
-        # Metadata includes chat_id and user_id to scope retrieval later if needed
-        # (Current retrieval in graph is global across user's spineiq index, 
-        # but could be filtered by namespace or metadata)
-        pass  # RAG ingestion disabled
+            pdf_text += page.extract_text() or ""
     
     # Standard DB Message Logging
     display_msg = message or f"Uploaded file: {file.filename}"
@@ -170,7 +200,8 @@ async def chat_with_file(
         "uploaded_file": {
             "type": "image" if file.content_type.startswith("image/") else "pdf",
             "data": file_b64,
-            "mime": file.content_type
+            "mime": file.content_type,
+            "text": pdf_text  # Extracted PDF text passed to the graph
         },
         "red_flag_detected": False
     }
@@ -185,5 +216,13 @@ async def chat_with_file(
         "content": ai_response,
         "is_red_flag": red_flag
     }).execute()
-    
-    return {"response": ai_response, "red_flag": red_flag}
+
+    # Auto-rename chat on first message (file upload)
+    existing = supabase.table("messages").select("id").eq("chat_id", chat_id).limit(2).execute()
+    new_title = None
+    if len(existing.data) <= 2:  # only the two we just inserted
+        title_source = message or f"Uploaded {file.filename}"
+        new_title = generate_chat_title(title_source)
+        supabase.table("chats").update({"title": new_title}).eq("id", chat_id).execute()
+
+    return {"response": ai_response, "red_flag": red_flag, "new_title": new_title}

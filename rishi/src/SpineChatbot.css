@@ -98,7 +98,21 @@
   font-weight: 600;
   letter-spacing: 1.2px;
   color: #334155;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  transition: color 0.15s;
 }
+.chat-list-label:hover { color: #475569; }
+
+.history-chevron {
+  font-size: 8px;
+  color: #4b5563;
+  transition: transform 0.2s ease;
+}
+.history-chevron.open { transform: rotate(180deg); }
 
 /* ── Chat list ── */
 .chat-list {
@@ -140,6 +154,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.chat-delete-btn {
+  opacity: 0;
+  font-size: 11px;
+  color: #ef4444;
+  padding: 2px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1.4;
+  transition: opacity 0.15s, background 0.15s;
+}
+.chat-item:hover .chat-delete-btn { opacity: 1; }
+.chat-delete-btn:hover { background: rgba(239, 68, 68, 0.15); }
 
 /* ── Sidebar skeleton ── */
 .sidebar-skeleton { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
@@ -216,6 +243,24 @@
   gap: 8px;
   font-size: 12px;
   color: #94a3b8;
+}
+
+.header-back-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: all 0.2s;
+}
+.header-back-btn:hover {
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.3);
+  color: #a78bfa;
 }
 
 .status-dot {
@@ -421,4 +466,35 @@ textarea::placeholder { color: #374151; }
 @media (max-width: 768px) {
   .chat-sidebar { display: none; }
   .messages-container, .chat-input-area { padding-left: 16px; padding-right: 16px; }
+}
+
+/* ── In-bubble file / image preview ── */
+.msg-img-preview {
+  display: block;
+  max-width: 220px;
+  max-height: 160px;
+  width: auto;
+  height: auto;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.msg-file-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(167, 139, 250, 0.1);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  color: #c4b5fd;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

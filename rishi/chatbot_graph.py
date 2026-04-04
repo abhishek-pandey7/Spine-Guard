@@ -40,17 +40,53 @@ def process_file_node(state: SpineState):
     last_user_text = last_user_msg.content if isinstance(last_user_msg, HumanMessage) else ""
 
     if file["type"] == "image":
+        ctx = state.get("patient_context", {})
+        image_context_prompt = (
+            last_user_text
+            if last_user_text else (
+                f"I am a patient recovering from {ctx.get('surgery_type', 'spine surgery')}, "
+                f"currently on day {ctx.get('days_post_op', 'unknown')} post-op. "
+                "I am sharing this medical image (MRI / X-ray / CT scan) from my own records. "
+                "Please describe what you can see — vertebral levels, disc spaces, alignment, "
+                "any hardware or implants, and any observations relevant to my recovery. "
+                "Frame your response as educational observations I can discuss with my surgeon."
+            )
+        )
         multimodal_message = HumanMessage(content=[
             {"type": "image_url", "image_url": {"url": f"data:{file['mime']};base64,{file['data']}"}},
-            {"type": "text", "text": last_user_text or "Please analyze this image related to my spine recovery."}
+            {"type": "text", "text": image_context_prompt}
         ])
         messages = state["messages"][:-1] + [multimodal_message]
         return {"messages": messages}
     
     elif file["type"] == "pdf":
-        # For PDF, we've already ingested it into Pinecone in the main.py before calling graph.
-        # So we just retrieve context here or in a separate retrieval node.
-        return {}
+        pdf_text = file.get("text", "").strip()
+        user_question = last_user_text or (
+            "Please analyze this medical document and provide a detailed, structured report covering: "
+            "key findings, diagnoses, test results & statistics, medications, clinical recommendations, "
+            "and anything relevant to spinal recovery."
+        )
+
+        if pdf_text:
+            prompt = (
+                "The user has uploaded a PDF medical document. "
+                "Read and analyze the extracted text below carefully, then provide a structured, accurate report covering: "
+                "key findings, diagnoses, test results & statistics, medications, clinical recommendations, "
+                "and anything specifically relevant to spinal recovery.\n\n"
+                f"--- PDF DOCUMENT TEXT ---\n{pdf_text}\n--- END ---\n\n"
+                f"User's request: {user_question}"
+            )
+        else:
+            prompt = (
+                "The user uploaded a PDF but no text could be extracted from it — "
+                "it may be a scanned or image-only PDF. "
+                f"User's request: {user_question}. "
+                "Please inform the user that this PDF type cannot be read automatically, "
+                "and ask them to copy-paste the key details or describe its contents."
+            )
+
+        messages = state["messages"][:-1] + [HumanMessage(content=prompt)]
+        return {"messages": messages}
 
     return {}
 

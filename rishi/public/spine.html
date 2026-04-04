@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpineViz — Spinal Surgery Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #080d14;
+            --bg2: #0d1520;
+            --surface: #111c2b;
+            --surface2: #162133;
+            --border: rgba(80, 160, 255, 0.12);
+            --border2: rgba(80, 160, 255, 0.22);
+            --accent: #3a8fff;
+            --accent2: #00d4aa;
+            --accent3: #ff6b6b;
+            --text: #e8f0fe;
+            --text2: #8fa8cc;
+            --text3: #4a6a99;
+            --cervical: #ff8c42;
+            --thoracic: #3a8fff;
+            --lumbar: #00d4aa;
+            --sacral: #c77dff;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: var(--bg);
+            font-family: 'Instrument Sans', sans-serif;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── HEADER ── */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 36px;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            background: rgba(8, 13, 20, 0.85);
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            font-family: 'DM Serif Display', serif;
+            font-size: 22px;
+            letter-spacing: -0.5px;
+            color: var(--text);
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        .header-badge {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            font-weight: 400;
+            color: var(--text3);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: 1px solid var(--border2);
+            padding: 4px 10px;
+            border-radius: 2px;
+        }
+
+        .header-hint {
+            font-size: 12px;
+            color: var(--text3);
+            font-family: 'DM Mono', monospace;
+        }
+
+        /* ── LAYOUT ── */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── LEFT PANEL ── */
+        .left-panel {
+            width: 260px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 20px;
+            gap: 8px;
+            overflow-y: auto;
+        }
+
+        .panel-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text3);
+            margin-bottom: 10px;
+        }
+
+        .region-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: left;
+        }
+
+        .region-btn:hover {
+            border-color: var(--border2);
+            background: var(--surface2);
+        }
+
+        .region-btn.active {
+            border-color: var(--clr);
+            background: rgba(var(--clr-rgb), 0.08);
+        }
+
+        .region-btn .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--clr);
+            flex-shrink: 0;
+            box-shadow: 0 0 8px var(--clr);
+        }
+
+        .region-btn .region-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            line-height: 1;
+        }
+
+        .region-btn .region-sub {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--text3);
+            margin-top: 3px;
+        }
+
+        .legend-area {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .controls-hint {
+            font-size: 11px;
+            color: var(--text3);
+            line-height: 1.7;
+            font-family: 'DM Mono', monospace;
+        }
+
+        .controls-hint strong {
+            color: var(--text2);
+        }
+
+        /* ── CANVAS AREA ── */
+        #canvas-wrap {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #three-canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .canvas-overlay-top {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--text3);
+            text-transform: uppercase;
+            pointer-events: none;
+        }
+
+        .hover-label {
+            position: absolute;
+            background: rgba(10, 18, 30, 0.92);
+            border: 1px solid var(--border2);
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-family: 'DM Mono', monospace;
+            color: var(--text);
+            pointer-events: none;
+            display: none;
+            backdrop-filter: blur(8px);
+            white-space: nowrap;
+        }
+
+        /* ── RIGHT PANEL ── */
+        .right-panel {
+            width: 340px;
+            flex-shrink: 0;
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .info-header {
+            padding: 24px 24px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .info-region-tag {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-region-tag .tag-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .info-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 24px;
+            line-height: 1.1;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .info-subtitle {
+            font-size: 12px;
+            color: var(--text2);
+            line-height: 1.5;
+        }
+
+        .info-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .info-body::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .info-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .info-body::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 4px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border2);
+        }
+
+        .stat-card-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text3);
+            margin-bottom: 8px;
+        }
+
+        .stat-card-value {
+            font-family: 'DM Serif Display', serif;
+            font-size: 20px;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .stat-card-sub {
+            font-size: 11px;
+            color: var(--text2);
+            line-height: 1.5;
+        }
+
+        .cost-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .cost-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .surgery-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .surgery-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+            background: var(--surface2);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .surgery-item-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .surgery-item-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .surgery-item-desc {
+            font-size: 11px;
+            color: var(--text2);
+            margin-top: 3px;
+            line-height: 1.5;
+        }
+
+        .recovery-timeline {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .rt-step {
+            flex: 1;
+            text-align: center;
+        }
+
+        .rt-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin: 0 auto 4px;
+        }
+
+        .rt-step-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px;
+            color: var(--text3);
+        }
+
+        .rt-connector {
+            flex: 1;
+            height: 2px;
+            background: var(--border);
+            margin-top: 3px;
+            border-radius: 1px;
+        }
+
+        .risk-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .risk-pill {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--text2);
+        }
+
+        /* Empty state */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px;
+            text-align: center;
+            gap: 12px;
+        }
+
+        .empty-icon {
+            font-size: 40px;
+            opacity: 0.3;
+        }
+
+        .empty-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 18px;
+            color: var(--text2);
+        }
+
+        .empty-sub {
+            font-size: 12px;
+            color: var(--text3);
+            font-family: 'DM Mono', monospace;
+            line-height: 1.6;
+        }
+
+        /* Animated entrance */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .info-body>* {
+            animation: fadeUp 0.4s ease both;
+        }
+
+        .info-body>*:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+
+        .info-body>*:nth-child(2) {
+            animation-delay: 0.12s;
+        }
+
+        .info-body>*:nth-child(3) {
+            animation-delay: 0.19s;
+        }
+
+        .info-body>*:nth-child(4) {
+            animation-delay: 0.26s;
+        }
+
+        .info-body>*:nth-child(5) {
+            animation-delay: 0.33s;
+        }
+
+        .pulse-ring {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .pulse-ring::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            border: 1.5px solid currentColor;
+            opacity: 0.4;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.4;
+            }
+
+            50% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        /* scrollbar for left panel */
+        .left-panel::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .left-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .left-panel::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">Spine<span>Viz</span></div>
+        <div class="header-badge">Interactive 3D Guide</div>
+        <div class="header-hint">Click a region to explore</div>
+    </header>
+
+    <div class="main-layout">
+
+        <!-- LEFT PANEL -->
+        <div class="left-panel">
+            <div class="panel-label">Spinal Regions</div>
+
+            <button class="region-btn" data-region="cervical" onclick="selectRegion('cervical')"
+                style="--clr: var(--cervical); --clr-rgb: 255,140,66;">
+                <div class="dot"></div>
+                <div>
+                    <div class="region-name">Cervical</div>
+                    <div class="region-sub">C1 – C7 · Neck</div>
+                </div>
+            </button>
+
+            <button class="region-btn" data-region="thoracic" onclick="selectRegion('thoracic')"
+                style="--clr: var(--thoracic); --clr-rgb: 58,143,255;">
+                <div class="dot"></div>
+                <div>
+                    <div class="region-name">Thoracic</div>
+                    <div class="region-sub">T1 – T12 · Mid-Back</div>
+                </div>
+            </button>
+
+            <button class="region-btn" data-region="lumbar" onclick="selectRegion('lumbar')"
+                style="--clr: var(--lumbar); --clr-rgb: 0,212,170;">
+                <div class="dot"></div>
+                <div>
+                    <div class="region-name">Lumbar</div>
+                    <div class="region-sub">L1 – L5 · Lower Back</div>
+                </div>
+            </button>
+
+            <button class="region-btn" data-region="sacral" onclick="selectRegion('sacral')"
+                style="--clr: var(--sacral); --clr-rgb: 199,125,255;">
+                <div class="dot"></div>
+                <div>
+                    <div class="region-name">Sacral / Coccyx</div>
+                    <div class="region-sub">S1 – S5 · Pelvis</div>
+                </div>
+            </button>
+
+            <div class="legend-area">
+                <div class="controls-hint">
+                    <strong>Drag</strong> to rotate<br>
+                    <strong>Scroll</strong> to zoom<br>
+                    <strong>Click</strong> region to select<br>
+                    <strong>R</strong> to reset view
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D CANVAS -->
+        <div id="canvas-wrap">
+            <canvas id="three-canvas"></canvas>
+            <div class="canvas-overlay-top">Posterior View · Interactive Model</div>
+            <div class="hover-label" id="hover-label"></div>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="right-panel">
+            <div class="info-header">
+                <div class="info-region-tag" id="info-tag">
+                    <div class="tag-dot" id="tag-dot" style="background:var(--text3)"></div>
+                    <span id="tag-text" style="color:var(--text3)">NO REGION SELECTED</span>
+                </div>
+                <div class="info-title" id="info-title">Spinal Region<br>Overview</div>
+                <div class="info-subtitle" id="info-subtitle">Select a region on the 3D model or from the panel to view
+                    surgical options and recovery data.</div>
+            </div>
+
+            <div id="info-body-wrap" class="info-body">
+                <div class="empty-state">
+                    <div class="empty-icon">🦴</div>
+                    <div class="empty-title">No region selected</div>
+                    <div class="empty-sub">Click any vertebral section<br>on the spine to begin</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="hover-label" class="hover-label"></div>
+
+    <script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // ─── DATA ───────────────────────────────────────────────────────────────────
+        const REGION_DATA = {
+            cervical: {
+                color: 0xff8c42,
+                colorHex: '#ff8c42',
+                name: 'Cervical Spine',
+                tag: 'C1 – C7 · NECK REGION',
+                subtitle: 'The cervical spine consists of 7 vertebrae supporting the head. It enables rotation, flexion, and extension. Disorders here can affect arms and upper body.',
+                surgeries: [
+                    { icon: '🔬', name: 'ACDF', full: 'Anterior Cervical Discectomy & Fusion', desc: 'Removes damaged disc from front of neck; vertebrae fused to eliminate painful motion.' },
+                    { icon: '⚙️', name: 'Cervical ADR', full: 'Artificial Disc Replacement', desc: 'Replaces degenerated disc with prosthetic implant; preserves motion at treated level.' },
+                    { icon: '🩺', name: 'Laminoplasty', full: 'Cervical Laminoplasty', desc: 'Reconstructs lamina to widen spinal canal; relieves cord compression without fusion.' },
+                ],
+                costRange: '₹3.5L – ₹8L',
+                costPct: 55,
+                recoveryWeeks: '6 – 12',
+                successRate: '92%',
+                risks: ['Nerve injury', 'Dysphagia', 'Adjacent segment', 'Hardware failure'],
+                timeline: ['Week 1–2', 'Month 1', 'Month 3', 'Month 6'],
+            },
+            thoracic: {
+                color: 0x3a8fff,
+                colorHex: '#3a8fff',
+                name: 'Thoracic Spine',
+                tag: 'T1 – T12 · MID-BACK',
+                subtitle: 'The thoracic spine connects to the rib cage and protects organs. Less mobile than other regions, yet vulnerable to kyphosis, fractures, and disc herniation.',
+                surgeries: [
+                    { icon: '🔩', name: 'Spinal Fusion', full: 'Posterior Thoracic Fusion', desc: 'Connects two or more vertebrae with rods, screws, and bone graft to stabilise the spine.' },
+                    { icon: '🩻', name: 'VATS', full: 'Video-Assisted Thoracoscopic Surgery', desc: 'Minimally invasive approach for disc herniations; smaller incisions, faster recovery.' },
+                    { icon: '📐', name: 'Kyphosis Correction', full: 'Osteotomy & Instrumentation', desc: 'Reshapes vertebral bone to correct abnormal thoracic curvature via Ponte or PSO osteotomy.' },
+                ],
+                costRange: '₹4L – ₹10L',
+                costPct: 70,
+                recoveryWeeks: '10 – 20',
+                successRate: '88%',
+                risks: ['Cord damage', 'Pneumonia', 'Rod breakage', 'Infection'],
+                timeline: ['Week 1–3', 'Month 2', 'Month 4', 'Month 9'],
+            },
+            lumbar: {
+                color: 0x00d4aa,
+                colorHex: '#00d4aa',
+                name: 'Lumbar Spine',
+                tag: 'L1 – L5 · LOWER BACK',
+                subtitle: 'The lumbar spine bears the greatest mechanical load. It is the most common site of disc herniation, stenosis, and spondylolisthesis in adults.',
+                surgeries: [
+                    { icon: '💡', name: 'Microdiscectomy', full: 'Lumbar Microdiscectomy', desc: 'Minimally invasive removal of herniated disc material compressing a nerve root. Gold standard for sciatica.' },
+                    { icon: '🔗', name: 'TLIF / PLIF', full: 'Transforaminal / Posterior Lumbar Interbody Fusion', desc: 'Restores disc height and fuses adjacent vertebrae using interbody cage with posterior instrumentation.' },
+                    { icon: '🌀', name: 'Laminectomy', full: 'Lumbar Laminectomy', desc: 'Removes lamina to decompress spinal canal; effective for stenosis causing neurogenic claudication.' },
+                ],
+                costRange: '₹2.5L – ₹7L',
+                costPct: 45,
+                recoveryWeeks: '4 – 16',
+                successRate: '94%',
+                risks: ['Dural tear', 'Failed back', 'Adjacent disease', 'Pseudarthrosis'],
+                timeline: ['Week 1', 'Month 1', 'Month 3', 'Month 6'],
+            },
+            sacral: {
+                color: 0xc77dff,
+                colorHex: '#c77dff',
+                name: 'Sacral / Coccyx',
+                tag: 'S1 – S5 · PELVIC BASE',
+                subtitle: 'The sacrum anchors the spine to the pelvis via sacroiliac joints. The coccyx (tailbone) is prone to fractures. Disorders affect bowel, bladder, and sexual function.',
+                surgeries: [
+                    { icon: '🔐', name: 'SI Joint Fusion', full: 'Sacroiliac Joint Arthrodesis', desc: 'Minimally invasive implants stabilise the SI joint, eliminating chronic pelvic and lower back pain.' },
+                    { icon: '🛡️', name: 'Sacroplasty', full: 'Percutaneous Sacroplasty', desc: 'Bone cement injected into sacral fractures under fluoroscopic guidance; near-immediate pain relief.' },
+                    { icon: '🧩', name: 'Coccygectomy', full: 'Surgical Coccyx Removal', desc: 'Removal of coccyx for chronic coccydynia unresponsive to conservative management.' },
+                ],
+                costRange: '₹1.5L – ₹5L',
+                costPct: 30,
+                recoveryWeeks: '6 – 14',
+                successRate: '86%',
+                risks: ['Wound healing', 'Nerve damage', 'Cement leakage', 'Recurrence'],
+                timeline: ['Week 1–2', 'Month 1', 'Month 2', 'Month 4'],
+            },
+        };
+
+        // ─── THREE.JS SETUP ──────────────────────────────────────────────────────────
+        const canvas = document.getElementById('three-canvas');
+        const wrap = document.getElementById('canvas-wrap');
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+        camera.position.set(0, 0, 7);
+
+        // Resize handler
+        function resize() {
+            const w = wrap.clientWidth, h = wrap.clientHeight;
+            renderer.setSize(w, h);
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // ─── LIGHTING ────────────────────────────────────────────────────────────────
+        const ambient = new THREE.AmbientLight(0x1a2a4a, 2);
+        scene.add(ambient);
+
+        const keyLight = new THREE.DirectionalLight(0x4488ff, 3);
+        keyLight.position.set(3, 5, 5);
+        keyLight.castShadow = true;
+        scene.add(keyLight);
+
+        const rimLight = new THREE.DirectionalLight(0x00aaff, 1.5);
+        rimLight.position.set(-4, 2, -3);
+        scene.add(rimLight);
+
+        const fillLight = new THREE.PointLight(0xff8855, 1, 20);
+        fillLight.position.set(2, -3, 4);
+        scene.add(fillLight);
+
+        const backLight = new THREE.DirectionalLight(0x334466, 1);
+        backLight.position.set(0, -5, -5);
+        scene.add(backLight);
+
+        // ─── BODY SILHOUETTE (Torso) ─────────────────────────────────────────────────
+        const bodyGroup = new THREE.Group();
+        scene.add(bodyGroup);
+
+        // Torso
+        function makeBodyPart(w, h, d, rx, ry, rz, color, opacity = 1) {
+            const geo = new THREE.CapsuleGeometry ?
+                new THREE.BoxGeometry(w, h, d, 4, 10, 4) :
+                new THREE.BoxGeometry(w, h, d, 4, 10, 4);
+            // Round it manually with vertex shader trick via shape
+            const mat = new THREE.MeshStandardMaterial({
+                color, transparent: opacity < 1, opacity,
+                roughness: 0.7, metalness: 0.05,
+                side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(rx, ry, rz);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        // Torso body (posterior view)
+        const torsoMat = new THREE.MeshStandardMaterial({
+            color: 0x1e3a5f, roughness: 0.8, metalness: 0.1,
+            transparent: true, opacity: 0.55
+        });
+
+        // Main torso shape using lathe geometry
+        const torsoPoints = [];
+        for (let i = 0; i <= 20; i++) {
+            const t = i / 20;
+            const y = 3.5 - t * 7;
+            // Shoulder taper at top, waist pinch in middle, hip flare at bottom
+            let r;
+            if (t < 0.15) r = 0.9 + t * 4; // shoulders
+            else if (t < 0.35) r = 1.55 - (t - 0.15) * 0.5; // chest
+            else if (t < 0.55) r = 1.45 - (t - 0.35) * 1.8; // waist
+            else if (t < 0.75) r = 1.09 + (t - 0.55) * 1.2; // hips
+            else r = 1.33 - (t - 0.75) * 1.2; // taper down
+            torsoPoints.push(new THREE.Vector2(Math.max(0.01, r), y));
+        }
+        const torsoGeo = new THREE.LatheGeometry(torsoPoints, 32);
+        const torsoMesh = new THREE.Mesh(torsoGeo, torsoMat);
+        torsoMesh.rotation.y = Math.PI;
+        bodyGroup.add(torsoMesh);
+
+        // Skin tone overlay (subtle)
+        const skinMat = new THREE.MeshStandardMaterial({
+            color: 0x1a3355, roughness: 0.9, metalness: 0,
+            transparent: true, opacity: 0.3,
+            side: THREE.BackSide
+        });
+        const skinMesh = new THREE.Mesh(torsoGeo, skinMat);
+        skinMesh.scale.set(1.01, 1.01, 1.01);
+        bodyGroup.add(skinMesh);
+
+        // Shoulder blades (scapulae) - subtle bumps
+        function addScapula(x) {
+            const geo = new THREE.SphereGeometry(0.45, 16, 16);
+            geo.scale(1.3, 1, 0.3);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x2a4a6a, roughness: 0.9, transparent: true, opacity: 0.4 });
+            const m = new THREE.Mesh(geo, mat);
+            m.position.set(x, 1.2, 0.85);
+            bodyGroup.add(m);
+        }
+        addScapula(0.75); addScapula(-0.75);
+
+        // ─── SPINE CONSTRUCTION ───────────────────────────────────────────────────────
+        const spineGroup = new THREE.Group();
+        bodyGroup.add(spineGroup);
+
+        const regionKeys = ['cervical', 'thoracic', 'lumbar', 'sacral'];
+
+        // Region layout: [yStart, yEnd, vertebraCount, curvature]
+        const regionLayout = {
+            cervical: { yTop: 3.15, yBot: 1.55, count: 7, curve: 0.12, baseW: 0.18, baseH: 0.22 },
+            thoracic: { yTop: 1.45, yBot: -1.0, count: 12, curve: -0.08, baseW: 0.20, baseH: 0.18 },
+            lumbar: { yTop: -1.1, yBot: -2.45, count: 5, curve: 0.10, baseW: 0.26, baseH: 0.22 },
+            sacral: { yTop: -2.55, yBot: -3.4, count: 5, curve: -0.04, baseW: 0.28, baseH: 0.16 },
+        };
+
+        const vertebraeMeshes = {}; // key: region → array of meshes
+        const regionColors = {
+            cervical: 0xff8c42, thoracic: 0x3a8fff, lumbar: 0x00d4aa, sacral: 0xc77dff
+        };
+        const regionColorsEmit = {
+            cervical: 0x331500, thoracic: 0x001133, lumbar: 0x002211, sacral: 0x220033
+        };
+
+        regionKeys.forEach(key => {
+            const rl = regionLayout[key];
+            vertebraeMeshes[key] = [];
+            const totalH = rl.yTop - rl.yBot;
+            const gap = totalH / (rl.count - 0.5);
+
+            for (let i = 0; i < rl.count; i++) {
+                const t = i / Math.max(rl.count - 1, 1);
+                const y = rl.yTop - i * gap;
+
+                // Size grows slightly toward lumbar
+                const sizeT = key === 'lumbar' ? 1 + t * 0.15 : key === 'sacral' ? 1 - t * 0.12 : 1;
+                const w = rl.baseW * sizeT;
+                const h = rl.baseH * 0.9;
+                const d = 0.22 * sizeT;
+
+                // Z curve (lordosis/kyphosis simulation)
+                const z = 0.9 + rl.curve * Math.sin(t * Math.PI);
+
+                // Vertebra body
+                const geo = new THREE.BoxGeometry(w * 2.2, h, d, 3, 2, 2);
+                // Round the corners by moving vertices
+                const pos = geo.attributes.position;
+                for (let v = 0; v < pos.count; v++) {
+                    const vx = pos.getX(v), vy = pos.getY(v), vz = pos.getZ(v);
+                    const cornerR = w * 0.3;
+                    const ax = Math.abs(vx) - (w * 2.2 / 2 - cornerR);
+                    const ay = Math.abs(vy) - (h / 2 - cornerR * 0.5);
+                    if (ax > 0 && ay > 0) {
+                        const len = Math.sqrt(ax * ax + ay * ay);
+                        if (len > cornerR) {
+                            const scale = cornerR / len;
+                            pos.setX(v, Math.sign(vx) * (w * 2.2 / 2 - cornerR + ax * scale));
+                            pos.setY(v, Math.sign(vy) * (h / 2 - cornerR * 0.5 + ay * scale));
+                        }
+                    }
+                }
+                geo.computeVertexNormals();
+
+                const mat = new THREE.MeshStandardMaterial({
+                    color: regionColors[key],
+                    emissive: regionColorsEmit[key],
+                    roughness: 0.45, metalness: 0.15,
+                });
+
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(0, y, z);
+                mesh.userData = { region: key, index: i };
+                mesh.castShadow = true;
+                spineGroup.add(mesh);
+                vertebraeMeshes[key].push(mesh);
+
+                // Spinous process (the bump sticking out back)
+                if (key !== 'sacral' || i < 3) {
+                    const spGeo = new THREE.ConeGeometry(h * 0.22, h * 1.1, 6);
+                    const spMat = new THREE.MeshStandardMaterial({
+                        color: regionColors[key], emissive: regionColorsEmit[key],
+                        roughness: 0.5, metalness: 0.1
+                    });
+                    const spMesh = new THREE.Mesh(spGeo, spMat);
+                    spMesh.position.set(0, y + h * 0.3, z + d * 0.6 + h * 0.4);
+                    spMesh.rotation.x = -Math.PI / 2 + 0.2;
+                    spMesh.userData = { region: key, index: i };
+                    spMesh.castShadow = true;
+                    spineGroup.add(spMesh);
+                    vertebraeMeshes[key].push(spMesh);
+                }
+
+                // Intervertebral disc (except last of each region)
+                if (i < rl.count - 1) {
+                    const discY = y - gap * 0.38;
+                    const discGeo = new THREE.CylinderGeometry(w * 1.1, w * 1.1, h * 0.4, 16);
+                    const discMat = new THREE.MeshStandardMaterial({
+                        color: 0xaac8dd, roughness: 0.8, metalness: 0,
+                        transparent: true, opacity: 0.7
+                    });
+                    const discMesh = new THREE.Mesh(discGeo, discMat);
+                    discMesh.position.set(0, discY, z);
+                    discMesh.rotation.z = Math.PI / 2;
+                    discMesh.userData = { region: key, disc: true };
+                    spineGroup.add(discMesh);
+                }
+            }
+        });
+
+        // ─── GLOW / OUTLINE PASS (fake with additive layer) ──────────────────────────
+        function createGlowMesh(region) {
+            const meshes = vertebraeMeshes[region];
+            const glows = [];
+            meshes.forEach(m => {
+                const gMat = new THREE.MeshBasicMaterial({
+                    color: regionColors[region], transparent: true, opacity: 0.15,
+                    side: THREE.BackSide
+                });
+                const gMesh = new THREE.Mesh(m.geometry, gMat);
+                gMesh.position.copy(m.position);
+                gMesh.rotation.copy(m.rotation);
+                gMesh.scale.set(1.25, 1.25, 1.25);
+                gMesh.visible = false;
+                spineGroup.add(gMesh);
+                glows.push(gMesh);
+            });
+            return glows;
+        }
+
+        const glowMeshes = {};
+        regionKeys.forEach(k => { glowMeshes[k] = createGlowMesh(k); });
+
+        // ─── RAYCASTER ────────────────────────────────────────────────────────────────
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredRegion = null;
+        let selectedRegion = null;
+        const hoverLabel = document.getElementById('hover-label');
+
+        const allVertsMeshes = [];
+        regionKeys.forEach(k => {
+            vertebraeMeshes[k].forEach(m => allVertsMeshes.push(m));
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(allVertsMeshes);
+
+            if (hits.length > 0) {
+                const region = hits[0].object.userData.region;
+                canvas.style.cursor = 'pointer';
+                hoverLabel.style.display = 'block';
+                hoverLabel.style.left = (e.clientX - wrap.getBoundingClientRect().left + 14) + 'px';
+                hoverLabel.style.top = (e.clientY - wrap.getBoundingClientRect().top - 10) + 'px';
+                hoverLabel.textContent = REGION_DATA[region]?.name || region;
+                hoverLabel.style.borderColor = REGION_DATA[region]?.colorHex;
+                hoveredRegion = region;
+            } else {
+                canvas.style.cursor = 'grab';
+                hoverLabel.style.display = 'none';
+                hoveredRegion = null;
+            }
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (Math.abs(e.clientX - dragStart.x) > 4 || Math.abs(e.clientY - dragStart.y) > 4) return;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(allVertsMeshes);
+            if (hits.length > 0) {
+                const region = hits[0].object.userData.region;
+                selectRegion(region);
+            }
+        });
+
+        // ─── ORBIT CONTROLS (manual) ──────────────────────────────────────────────────
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let angles = { theta: 0, phi: 0.1 };
+        let targetAngles = { theta: 0, phi: 0.1 };
+        let zoom = 7, targetZoom = 7;
+
+        canvas.addEventListener('mousedown', e => { isDragging = true; dragStart = { x: e.clientX, y: e.clientY }; canvas.style.cursor = 'grabbing'; });
+        window.addEventListener('mouseup', () => { isDragging = false; canvas.style.cursor = 'grab'; });
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            targetAngles.theta -= (e.movementX) * 0.01;
+            targetAngles.phi = Math.max(-0.6, Math.min(0.8, targetAngles.phi + e.movementY * 0.01));
+        });
+        canvas.addEventListener('wheel', e => {
+            targetZoom = Math.max(3.5, Math.min(12, targetZoom + e.deltaY * 0.01));
+        });
+
+        // Touch support
+        let lastTouch = null;
+        canvas.addEventListener('touchstart', e => { lastTouch = e.touches[0]; dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; });
+        canvas.addEventListener('touchmove', e => {
+            if (!lastTouch) return;
+            const dx = e.touches[0].clientX - lastTouch.clientX;
+            const dy = e.touches[0].clientY - lastTouch.clientY;
+            targetAngles.theta -= dx * 0.012;
+            targetAngles.phi = Math.max(-0.6, Math.min(0.8, targetAngles.phi + dy * 0.012));
+            lastTouch = e.touches[0];
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('keydown', e => {
+            if (e.key === 'r' || e.key === 'R') {
+                targetAngles.theta = 0; targetAngles.phi = 0.1; targetZoom = 7;
+            }
+        });
+
+        // ─── ANIMATION LOOP ───────────────────────────────────────────────────────────
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016;
+
+            // Smooth camera
+            angles.theta += (targetAngles.theta - angles.theta) * 0.1;
+            angles.phi += (targetAngles.phi - angles.phi) * 0.1;
+            zoom += (targetZoom - zoom) * 0.1;
+
+            camera.position.x = zoom * Math.sin(angles.theta) * Math.cos(angles.phi);
+            camera.position.y = zoom * Math.sin(angles.phi);
+            camera.position.z = zoom * Math.cos(angles.theta) * Math.cos(angles.phi);
+            camera.lookAt(0, 0, 0);
+
+            // Pulse selected region
+            regionKeys.forEach(key => {
+                const isSelected = key === selectedRegion;
+                const isHovered = key === hoveredRegion && key !== selectedRegion;
+
+                vertebraeMeshes[key].forEach(m => {
+                    const mat = m.material;
+                    if (isSelected) {
+                        mat.emissiveIntensity = 0.4 + Math.sin(time * 3) * 0.15;
+                    } else if (isHovered) {
+                        mat.emissiveIntensity = 0.25;
+                    } else {
+                        mat.emissiveIntensity = 0;
+                    }
+                });
+
+                glowMeshes[key].forEach(g => {
+                    g.visible = isSelected;
+                    if (isSelected) g.material.opacity = 0.1 + Math.sin(time * 2.5) * 0.05;
+                });
+            });
+
+            // Gentle idle bob
+            bodyGroup.rotation.y = Math.sin(time * 0.25) * 0.04;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // ─── UI UPDATE ────────────────────────────────────────────────────────────────
+        window.selectRegion = function (key) {
+            selectedRegion = key;
+            const d = REGION_DATA[key];
+
+            // Update sidebar buttons
+            document.querySelectorAll('.region-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.region === key);
+            });
+
+            // Update right panel header
+            document.getElementById('tag-dot').style.background = d.colorHex;
+            document.getElementById('tag-text').style.color = d.colorHex;
+            document.getElementById('tag-text').textContent = d.tag;
+            document.getElementById('info-title').innerHTML = d.name;
+            document.getElementById('info-subtitle').textContent = d.subtitle;
+
+            // Build info body
+            const body = document.getElementById('info-body-wrap');
+            body.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-card-label">Surgery Options</div>
+      <div class="surgery-list">
+        ${d.surgeries.map(s => `
+          <div class="surgery-item">
+            <div class="surgery-item-icon">${s.icon}</div>
+            <div>
+              <div class="surgery-item-name">${s.name} <span style="font-size:10px;color:var(--text3);font-weight:300">/ ${s.full}</span></div>
+              <div class="surgery-item-desc">${s.desc}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="stat-card">
+        <div class="stat-card-label">Estimated Cost (India)</div>
+        <div class="stat-card-value" style="font-size:17px;color:${d.colorHex}">${d.costRange}</div>
+        <div class="cost-bar"><div class="cost-bar-fill" style="width:${d.costPct}%;background:${d.colorHex}"></div></div>
+        <div class="stat-card-sub" style="margin-top:6px">Varies by hospital tier & surgeon experience</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Success Rate</div>
+        <div class="stat-card-value" style="color:${d.colorHex}">${d.successRate}</div>
+        <div class="stat-card-sub">With experienced surgical team and appropriate candidate selection</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-label">Recovery Timeline · ${d.recoveryWeeks} Weeks</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:8px;">
+        ${d.timeline.map((label, i) => `
+          ${i > 0 ? `<div style="flex:1;height:2px;background:linear-gradient(90deg,${d.colorHex}88,${d.colorHex}22);border-radius:1px"></div>` : ''}
+          <div style="text-align:center;flex-shrink:0">
+            <div style="width:10px;height:10px;border-radius:50%;background:${d.colorHex};margin:0 auto 5px;box-shadow:0 0 6px ${d.colorHex}88;opacity:${1 - i * 0.18}"></div>
+            <div style="font-family:'DM Mono',monospace;font-size:8.5px;color:var(--text3);white-space:nowrap">${label}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="stat-card-sub" style="margin-top:10px">Conservative estimate. Physiotherapy and lifestyle adjustments required throughout recovery.</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-label">Common Risks & Complications</div>
+      <div class="risk-pills">
+        ${d.risks.map(r => `<span class="risk-pill">${r}</span>`).join('')}
+      </div>
+      <div class="stat-card-sub" style="margin-top:10px">Consult a certified spine surgeon for personalised risk assessment.</div>
+    </div>
+
+    <div style="padding:12px 0;text-align:center">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);line-height:1.8">
+        ⚕ This information is for educational purposes only.<br>
+        Always seek professional medical advice.
+      </div>
+    </div>
+  `;
+        };
+    </script>
+</body>
+
+</html>
