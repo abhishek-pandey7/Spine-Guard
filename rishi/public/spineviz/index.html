@@ -13,12 +13,14 @@
         rel="stylesheet">
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="./css/base.css">
-    <link rel="stylesheet" href="./css/layout.css">
-    <link rel="stylesheet" href="./css/components.css">
+
+
+
 
     <!-- Sketchfab Viewer API -->
     <script src="https://static.sketchfab.com/api/sketchfab-viewer-1.12.1.js"></script>
+  <script type="module" crossorigin src="/spineviz/assets/index-C-W5yWG6.js"></script>
+  <link rel="stylesheet" crossorigin href="/spineviz/assets/index-WBE9LF7V.css">
 </head>
 
 <body>
@@ -67,7 +69,7 @@
 
                 <button id="analyse-btn" disabled onclick="analyseMRI()">
                     <span class="btn-ico">🔬</span>
-                    Analyse with AI
+                    Analyse with Gemini AI
                 </button>
 
                 <div class="scan-bar" id="scan-bar">
@@ -250,35 +252,10 @@
             z-index: 20;
             pointer-events: none;
         }
-
-        .popup-label {
-            font-family: 'DM Mono', monospace;
-            font-size: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #c0392b;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-
-        .popup-level {
-            font-family: 'DM Serif Display', serif;
-            font-size: 18px;
-            color: #2c3e3f;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .popup-finding {
-            font-size: 11px;
-            color: #5a6e6f;
-            font-family: 'DM Mono', monospace;
-            line-height: 1.5;
-        }
     </style>
 
     <!-- ── MODULE ENTRY POINT ─────────────────────────────────── -->
-    <script type="module" src="./js/app.js"></script>
+
 
 </body>
 

@@ -195,10 +195,10 @@ function _cssFallbackPin(label, color) {
         <div style="width:14px;height:14px;border-radius:50%;background:${color};
             box-shadow:0 0 10px ${color};animation:sfPulse 1.3s ease-out infinite;
             flex-shrink:0;"></div>
-        <span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;
-            color:${color};letter-spacing:1.5px;background:rgba(6,6,14,.88);
-            border:1px solid ${color}55;border-radius:5px;padding:3px 9px;
-            white-space:nowrap;">${levelKey}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;
+            color:#2c3e3f;letter-spacing:1.5px;background:rgba(238,228,225,0.95);
+            border:1px solid ${color}88;border-radius:5px;padding:3px 9px;
+            white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15);">${levelKey}</span>
     `;
     mid.appendChild(el);
 

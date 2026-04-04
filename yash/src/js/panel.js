@@ -36,19 +36,19 @@ function _buildAICard(aiData, d) {
     if (!aiData) return '';
     return `
     <div class="card affected-card">
-      <div class="card-lbl" style="color:var(--red)">🔴 AI Diagnosis — ${aiData.conf}% Confidence</div>
-      <div style="font-size:13px;font-weight:600;color:#ff8899;margin-bottom:6px">${aiData.finding}</div>
+      <div class="card-lbl" style="color:#c0392b;font-weight:700">🔴 AI Diagnosis — ${aiData.conf}% Confidence</div>
+      <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:6px">${aiData.finding}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
         ${aiData.levels.map(l => `
           <span style="font-family:'DM Mono',monospace;font-size:10px;padding:3px 9px;
-            border-radius:12px;background:rgba(255,68,85,.15);
-            border:1px solid rgba(255,68,85,.3);color:var(--red)">${l}</span>
+            border-radius:12px;background:rgba(192,57,43,0.12);
+            border:1px solid rgba(192,57,43,0.4);color:#c0392b;font-weight:700">${l}</span>
         `).join('')}
       </div>
-      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text2)">
-        Recommended: <span style="color:var(--text)">${aiData.surgery}</span>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:#5a6e6f">
+        Recommended: <span style="color:#2c3e3f;font-weight:600">${aiData.surgery}</span>
       </div>
-      <div style="font-size:10px;color:var(--text3);margin-top:8px;font-family:'DM Mono',monospace">
+      <div style="font-size:10px;color:#8a9e9f;margin-top:8px;font-family:'DM Mono',monospace">
         Affected vertebrae are highlighted in the 3D model.
       </div>
     </div>`;

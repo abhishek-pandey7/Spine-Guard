@@ -3,6 +3,11 @@ import SpineChatbot from "./SpineChatbot";
 import DoctorDashboard from "./DoctorDashboard";
 import { supabase } from "./supabaseClient";
 import "./App.css";
+import PatientHub from "./PatientHub";
+import PhysioCheckin from "./PhysioCheckin";
+import ExerciseList from "./ExerciseList";
+import ExerciseSession from "./ExerciseSession";
+import PageTransition from "./PageTransition";
 
 const SURGERY_TYPES = ["Lumbar Discectomy","Spinal Fusion (L4-L5)","Spinal Fusion (L5-S1)","Cervical Disc Replacement","Laminectomy","Microdiscectomy","TLIF / PLIF","Scoliosis Correction","Other"];
 const RECOVERY_PHASES = ["Phase 1 — Acute (0–2 weeks)","Phase 2 — Early (2–6 weeks)","Phase 3 — Active (6–12 weeks)","Phase 4 — Return to Function (3–6 months)"];
@@ -26,6 +31,8 @@ export default function App() {
   const [patientContext, setPatientContext] = useState(null);
   const [selectedMode, setSelectedMode] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [physioSession, setPhysioSession] = useState({});
+  const [hubMode, setHubMode] = useState(null);
   const [settingsForm, setSettingsForm] = useState({});
 
   // Basic onboarding
@@ -231,7 +238,47 @@ export default function App() {
   };
 
   // ── RENDER ──────────────────────────────────────────────
-  if (loading) return <div className="setup-bg"><div className="loader">🦴</div></div>;
+  if (loading) return <PageTransition transitionKey="loading"><div className="setup-bg"><div className="loader">🦴</div></div></PageTransition>;
+
+  // Settings modal — rendered globally so it works from PatientHub too
+  const settingsModal = showSettings && (
+    <div className="settings-overlay" onClick={() => setShowSettings(false)}>
+      <div className="settings-modal" onClick={e => e.stopPropagation()}>
+        <div className="settings-modal-header">
+          <span>Edit Profile &amp; Medical Details</span>
+          <button className="settings-close-btn" onClick={() => setShowSettings(false)}>✕</button>
+        </div>
+        <form className="setup-form settings-form" onSubmit={handleSettingsSave}>
+          <div className="settings-section-label">PERSONAL INFO</div>
+          <div className="form-row two-col">
+            <div><label>Full Name</label><input value={settingsForm.full_name || ""} onChange={e => setSettingsForm(f => ({...f, full_name: e.target.value}))} /></div>
+            <div><label>Phone</label><input placeholder="+1 234 567 8900" value={settingsForm.phone || ""} onChange={e => setSettingsForm(f => ({...f, phone: e.target.value}))} /></div>
+          </div>
+          <div className="form-row two-col">
+            <div><label>Age</label><input type="number" min="1" max="120" value={settingsForm.age || ""} onChange={e => setSettingsForm(f => ({...f, age: e.target.value}))} /></div>
+            <div><label>Gender</label>
+              <select value={settingsForm.gender || ""} onChange={e => setSettingsForm(f => ({...f, gender: e.target.value}))}>
+                <option value="">Select</option>
+                <option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option>
+              </select>
+            </div>
+          </div>
+          <div className="settings-section-label" style={{marginTop:8}}>CLINICAL DETAILS</div>
+          <div className="form-row"><label>Chief Complaint / Pain Location</label><input placeholder="e.g. Lower back, radiating to left leg" value={settingsForm.chief_complaint || ""} onChange={e => setSettingsForm(f => ({...f, chief_complaint: e.target.value}))} /></div>
+          <div className="form-row"><label>History of Present Illness (HOPI)</label><textarea className="intake-textarea" rows={3} placeholder="Describe symptoms..." value={settingsForm.hopi || ""} onChange={e => setSettingsForm(f => ({...f, hopi: e.target.value}))} /></div>
+          <div className="form-row two-col">
+            <div><label>Height (cm)</label><input type="number" min="50" max="250" value={settingsForm.height || ""} onChange={e => setSettingsForm(f => ({...f, height: e.target.value}))} /></div>
+            <div><label>Weight (kg)</label><input type="number" min="10" max="300" value={settingsForm.weight || ""} onChange={e => setSettingsForm(f => ({...f, weight: e.target.value}))} /></div>
+          </div>
+          <div className="settings-section-label" style={{marginTop:8}}>MEDICAL HISTORY</div>
+          <div className="form-row"><label>Scans Done</label><input value={settingsForm.scans_done || ""} onChange={e => setSettingsForm(f => ({...f, scans_done: e.target.value}))} /></div>
+          <div className="form-row"><label>Treatments Tried</label><textarea className="intake-textarea" rows={2} value={settingsForm.treatments_history || ""} onChange={e => setSettingsForm(f => ({...f, treatments_history: e.target.value}))} /></div>
+          <div className="form-row"><label>Additional Issues</label><textarea className="intake-textarea" rows={2} value={settingsForm.custom_issues || ""} onChange={e => setSettingsForm(f => ({...f, custom_issues: e.target.value}))} /></div>
+          <button type="submit" className="start-btn" style={{marginTop:4}}>Save Changes</button>
+        </form>
+      </div>
+    </div>
+  );
 
   if (!session) return (
     <div className="setup-bg">
@@ -536,145 +583,84 @@ export default function App() {
     );
   }
 
-  // Mode selection (patient only)
-  if (!selectedMode) return (
-    <div className="setup-bg">
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="settings-overlay" onClick={() => setShowSettings(false)}>
-          <div className="settings-modal" onClick={e => e.stopPropagation()}>
-            <div className="settings-modal-header">
-              <span>Edit Profile &amp; Medical Details</span>
-              <button className="settings-close-btn" onClick={() => setShowSettings(false)}>✕</button>
-            </div>
-            <form className="setup-form settings-form" onSubmit={handleSettingsSave}>
-              <div className="settings-section-label">PERSONAL INFO</div>
-              <div className="form-row two-col">
-                <div>
-                  <label>Full Name</label>
-                  <input value={settingsForm.full_name} onChange={e => setSettingsForm(f => ({...f, full_name: e.target.value}))} />
-                </div>
-                <div>
-                  <label>Phone</label>
-                  <input placeholder="+1 234 567 8900" value={settingsForm.phone} onChange={e => setSettingsForm(f => ({...f, phone: e.target.value}))} />
-                </div>
-              </div>
-              <div className="form-row two-col">
-                <div>
-                  <label>Age</label>
-                  <input type="number" min="1" max="120" value={settingsForm.age} onChange={e => setSettingsForm(f => ({...f, age: e.target.value}))} />
-                </div>
-                <div>
-                  <label>Gender</label>
-                  <select value={settingsForm.gender} onChange={e => setSettingsForm(f => ({...f, gender: e.target.value}))}>
-                    <option value="">Select</option>
-                    <option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option>
-                  </select>
-                </div>
-              </div>
-              <div className="settings-section-label" style={{marginTop:8}}>CLINICAL DETAILS</div>
-              <div className="form-row">
-                <label>Chief Complaint / Pain Location</label>
-                <input placeholder="e.g. Lower back, radiating to left leg" value={settingsForm.chief_complaint} onChange={e => setSettingsForm(f => ({...f, chief_complaint: e.target.value}))} />
-              </div>
-              <div className="form-row">
-                <label>History of Present Illness (HOPI)</label>
-                <textarea className="intake-textarea" rows={3} placeholder="Describe symptoms..." value={settingsForm.hopi} onChange={e => setSettingsForm(f => ({...f, hopi: e.target.value}))} />
-              </div>
-              <div className="form-row two-col">
-                <div>
-                  <label>Height (cm)</label>
-                  <input type="number" min="50" max="250" value={settingsForm.height} onChange={e => setSettingsForm(f => ({...f, height: e.target.value}))} />
-                </div>
-                <div>
-                  <label>Weight (kg)</label>
-                  <input type="number" min="10" max="300" value={settingsForm.weight} onChange={e => setSettingsForm(f => ({...f, weight: e.target.value}))} />
-                </div>
-              </div>
-              <div className="settings-section-label" style={{marginTop:8}}>MEDICAL HISTORY</div>
-              <div className="form-row">
-                <label>Scans Done (e.g. MRI, X-Ray)</label>
-                <input value={settingsForm.scans_done} onChange={e => setSettingsForm(f => ({...f, scans_done: e.target.value}))} />
-              </div>
-              <div className="form-row">
-                <label>Treatments Tried</label>
-                <textarea className="intake-textarea" rows={2} value={settingsForm.treatments_history} onChange={e => setSettingsForm(f => ({...f, treatments_history: e.target.value}))} />
-              </div>
-              <div className="form-row">
-                <label>Additional Issues / Concerns</label>
-                <textarea className="intake-textarea" rows={2} value={settingsForm.custom_issues} onChange={e => setSettingsForm(f => ({...f, custom_issues: e.target.value}))} />
-              </div>
-              <button type="submit" className="start-btn" style={{marginTop:4}}>Save Changes</button>
-            </form>
-          </div>
-        </div>
-      )}
+  // ── Patient Hub + Physio flow ──
+  const handleHubNavigate = (screen) => {
+    if (screen === "chatbot") { setSelectedMode("chatbot"); setHubMode(null); }
+    else if (screen === "spineviz") { setSelectedMode("spine"); setHubMode(null); }
+    else setHubMode(screen);
+  };
 
-      <div className="setup-card" style={{ maxWidth:560, textAlign:"center" }}>
-        <div className="setup-header-row">
-          <div className="logged-in-user">
-            <span className="user-icon">👤</span>
-            <div className="user-info">
-              <span className="user-name">{profile.full_name}</span>
-              <span className="user-role">{profile.role}</span>
-            </div>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <button className="settings-icon-btn" onClick={openSettings} title="Edit profile & medical details">⚙</button>
-            <button className="logout-mini-btn" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
-        <div className="setup-logo">🦴</div>
-        <h1 className="setup-title">SpineIQ</h1>
-        <p className="setup-subtitle">Welcome back, <strong>{profile.full_name}</strong>. Choose your experience.</p>
-        <div style={{ display:"flex", gap:16, marginTop:28 }}>
-          <button onClick={() => setSelectedMode("chatbot")} className="mode-card mode-card-purple">
-            <span style={{ fontSize:36 }}>🤖</span>
-            <span className="mode-card-title" style={{ color:"#a78bfa" }}>AI Recovery Chat</span>
-            <span className="mode-card-desc">Personalised guidance from your AI spine recovery assistant</span>
-          </button>
-          <button onClick={() => setSelectedMode("spine")} className="mode-card mode-card-blue">
-            <span style={{ fontSize:36 }}>🦴</span>
-            <span className="mode-card-title" style={{ color:"#60a5fa" }}>Spine Visualizer</span>
-            <span className="mode-card-desc">Interactive 3D spine anatomy and surgical procedure guides</span>
-          </button>
-        </div>
-      </div>
-    </div>
+  if (!selectedMode && !hubMode) return (
+    <PageTransition transitionKey="hub">
+      <>
+        {settingsModal}
+        <PatientHub
+          profile={profile}
+          onNavigate={handleHubNavigate}
+          onLogout={handleLogout}
+          onOpenSettings={openSettings}
+        />
+      </>
+    </PageTransition>
   );
 
-  // Spine Visualizer
+  const goBack = () => {
+    setSelectedMode(null);
+    setHubMode(null);
+    setPatientContext(null);
+    window.history.back();
+  };
+
+  // Spine Visualizer (MRI + 3D)
   if (selectedMode === "spine") return (
-    <div style={{ width:"100vw", height:"100vh", position:"relative", background:"#080d14" }}>
-      <button onClick={() => setSelectedMode(null)} style={{ position:"absolute", top:16, left:16, zIndex:1000, background:"rgba(13,14,23,0.85)", border:"1px solid rgba(255,255,255,0.1)", color:"#a78bfa", borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer", backdropFilter:"blur(8px)" }}>← Back</button>
-      <iframe src="/spine.html" style={{ width:"100%", height:"100%", border:"none" }} title="SpineViz" />
-    </div>
-  );
-
-  // SpineChatbot
-  if (patientContext) return <SpineChatbot patientContext={{ ...patientContext, user: profile }} onReset={() => setPatientContext(null)} />;
-
-  // Patient setup form
-  return (
-    <div className="setup-bg">
-      <div className="setup-card">
-        <div className="setup-header-row">
-          <button className="back-btn" style={{ border:"none", background:"none", color:"#64748b", cursor:"pointer", fontSize:13, padding:0 }} onClick={() => setSelectedMode(null)}>← Back</button>
-          <button className="logout-mini-btn" onClick={handleLogout}>Logout</button>
+    <PageTransition transitionKey="spine">
+      <>
+        {settingsModal}
+        <button className="float-back-btn" onClick={goBack}>← Back</button>
+        <div style={{ width:"100vw", height:"100vh", position:"relative", background:"#080d14" }}>
+          <iframe src="http://localhost:5176" style={{ width:"100%", height:"100%", border:"none" }} title="SpineViz AI" />
         </div>
-        <h1 className="setup-title">SpineIQ</h1>
-        <p className="setup-subtitle">Recovery context for <strong>{profile.full_name}</strong></p>
-        <form className="setup-form" onSubmit={handlePatientSetupSubmit}>
-          <div className="form-row"><label>Surgery Type</label><select value={setupForm.surgery_type} onChange={e => setSetupForm({ ...setupForm, surgery_type: e.target.value })}>{SURGERY_TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
-          <div className="form-row"><label>Days Since Surgery <span className="req">*</span></label><input type="number" min="0" placeholder="e.g. 14" value={setupForm.days_post_op} required onChange={e => setSetupForm({ ...setupForm, days_post_op: e.target.value })} /></div>
-          <div className="form-row"><label>Recovery Phase</label><select value={setupForm.recovery_phase} onChange={e => setSetupForm({ ...setupForm, recovery_phase: e.target.value })}>{RECOVERY_PHASES.map(p => <option key={p}>{p}</option>)}</select></div>
-          <div className="form-row two-col">
-            <div><label>Pain Score (0–10)</label><input type="number" min="0" max="10" value={setupForm.pain_score} onChange={e => setSetupForm({ ...setupForm, pain_score: e.target.value })} /></div>
-            <div><label>Language</label><select value={setupForm.language} onChange={e => setSetupForm({ ...setupForm, language: e.target.value })}>{LANGUAGES.map(l => <option key={l}>{l}</option>)}</select></div>
-          </div>
-          <button type="submit" className="start-btn">Launch SpineIQ →</button>
-        </form>
-      </div>
-    </div>
+      </>
+    </PageTransition>
   );
+
+  if (hubMode === "physio") return (
+    <PageTransition transitionKey="physio">
+      <>
+        {settingsModal}
+        <button className="float-back-btn" onClick={goBack}>← Back</button>
+        <div style={{ width:"100vw", height:"100vh", position:"relative", background:"#ecf8f8" }}>
+        <iframe src="http://localhost:5175" allow="camera; microphone; display-capture" allowFullScreen style={{ width:"100%", height:"100%", border:"none" }} title="Physio Exercise Monitor" />
+        </div>
+      </>
+    </PageTransition>
+  );
+
+  if (!selectedMode) return null;
+
+  // SpineChatbot — go directly using profile data, no extra setup form needed
+  if (selectedMode === "chatbot") {
+    const ctx = patientContext || {
+      surgery_type: profile.chief_complaint || "Spinal condition",
+      days_post_op: 0,
+      recovery_phase: RECOVERY_PHASES[0],
+      pain_score: null,
+      language: "English",
+      exercises: [],
+    };
+    return (
+      <PageTransition transitionKey="chatbot">
+        <>
+          {settingsModal}
+          <button className="float-back-btn" onClick={goBack}>← Back</button>
+          <SpineChatbot
+            patientContext={{ ...ctx, user: profile }}
+            onReset={() => { setSelectedMode(null); setPatientContext(null); }}
+          />
+        </>
+      </PageTransition>
+    );
+  }
+
+  return null;
 }

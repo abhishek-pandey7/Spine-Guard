@@ -7,28 +7,28 @@
 }
 
 :root {
-    --bg: #050b12;
-    --bg2: #081018;
-    --surf: #0c1922;
-    --surf2: #101f2e;
-    --surf3: #132233;
-    --border: rgba(60, 130, 255, .11);
-    --border2: rgba(60, 130, 255, .24);
-    --border3: rgba(60, 130, 255, .4);
-    --text: #d8eaff;
-    --text2: #6a90b8;
-    --text3: #334d6a;
-    --accent: #3a8fff;
-    --red: #ff4455;
-    --red2: #ff2233;
-    --green: #00d4aa;
-    --orange: #ff8c42;
-    --purple: #c77dff;
+    --bg: #c8dfe0;
+    --bg2: #b8d4d6;
+    --surf: #d8e8e9;
+    --surf2: #cde0e1;
+    --surf3: #bfd8da;
+    --border: rgba(30,125,140,0.2);
+    --border2: rgba(30,125,140,0.35);
+    --border3: rgba(30,125,140,0.55);
+    --text: #2c3e3f;
+    --text2: #5a6e6f;
+    --text3: #8a9e9f;
+    --accent: #1e7d8c;
+    --red: #c0392b;
+    --red2: #a93226;
+    --green: #2a9aad;
+    --orange: #b2967d;
+    --purple: #8a6e5a;
 
-    --c-cervical: #ff8c42;
-    --c-thoracic: #3a8fff;
-    --c-lumbar: #00d4aa;
-    --c-sacral: #c77dff;
+    --c-cervical: #b2967d;
+    --c-thoracic: #1e7d8c;
+    --c-lumbar: #2a9aad;
+    --c-sacral: #e6beae;
 }
 
 html,

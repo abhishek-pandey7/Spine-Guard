@@ -4,7 +4,7 @@ import json
 import base64
 from typing import Optional, List
 from dotenv import load_dotenv
-
+load_dotenv()
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -15,7 +15,6 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from chatbot_graph import spine_graph
 
-load_dotenv()
 
 # --- Config ---
 SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
@@ -226,3 +225,40 @@ async def chat_with_file(
         supabase.table("chats").update({"title": new_title}).eq("id", chat_id).execute()
 
     return {"response": ai_response, "red_flag": red_flag, "new_title": new_title}
+
+
+# --- Physio Session Endpoint ---
+class ExerciseResult(BaseModel):
+    name: str
+    reps_done: int
+    target_reps: int
+
+class SessionRequest(BaseModel):
+    user_id: str
+    condition: str
+    phase: int
+    pain_before: int
+    pain_after: int
+    exercises: list[ExerciseResult]
+    notes: str = ""
+
+@app.post("/session")
+async def save_session(req: SessionRequest):
+    """Save a completed physio session to Supabase for doctor progress tracking."""
+    data = {
+        "user_id": req.user_id,
+        "condition": req.condition,
+        "phase": req.phase,
+        "pain_before": req.pain_before,
+        "pain_after": req.pain_after,
+        "exercises": [{"name": e.name, "reps_done": e.reps_done, "target_reps": e.target_reps} for e in req.exercises],
+        "notes": req.notes,
+    }
+    res = supabase.table("physio_sessions").insert(data).execute()
+    return {"success": True, "id": res.data[0]["id"] if res.data else None}
+
+@app.get("/sessions/{user_id}")
+async def get_sessions(user_id: str):
+    """Fetch all physio sessions for a patient (used by doctor dashboard)."""
+    res = supabase.table("physio_sessions").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+    return res.data

@@ -42,7 +42,7 @@ window.analyseMRI = async function () {
         console.error(e);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span class="btn-ico">🔬</span> Analyse with Gemini AI';
+        btn.innerHTML = '<span class="btn-ico">🔬</span> Analyse with AI';
         document.getElementById('scan-bar').classList.remove('active');
     }
 };

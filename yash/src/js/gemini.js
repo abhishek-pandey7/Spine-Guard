@@ -2,7 +2,7 @@
 //  gemini.js — MRI Analysis with Visual Grounding
 // ══════════════════════════════════════════════════════════
 
-const DEFAULT_API_KEY = ''; // ← paste your key here if hardcoding
+const DEFAULT_API_KEY = 'AIzaSyCw47DTNDYSK-A7fQhSLJumhMTxJtj0BKg'; // Hardcoded for production
 
 // RECOMMENDATION: Use 'gemini-1.5-pro' for better medical OCR if available
 const GEMINI_MODEL = 'gemini-2.5-flash';
@@ -44,6 +44,12 @@ Required structure:
 export function setupFileHandlers(callbacks) {
     const fileInp = document.getElementById('file-inp');
     const uploadZone = document.getElementById('upload-zone');
+
+    // Hide API key input since we're using env var
+    const apiKeyWrap = document.getElementById('api-key-wrap');
+    if (apiKeyWrap && DEFAULT_API_KEY) {
+        apiKeyWrap.style.display = 'none';
+    }
 
     if (DEFAULT_API_KEY) {
         const inp = document.getElementById('api-key-inp');
@@ -92,10 +98,9 @@ export function clearMRIState() {
     document.getElementById('file-inp').value = '';
 }
 
-// ── GEMINI API CALL ───────────────────────────────────────
 export async function analyseWithGemini() {
-    const apiKey = document.getElementById('api-key-inp').value.trim() || DEFAULT_API_KEY;
-    if (!apiKey) throw new Error('Please paste your Gemini API key in the header input field.');
+    const apiKey = DEFAULT_API_KEY || document.getElementById('api-key-inp')?.value.trim();
+    if (!apiKey) throw new Error('Gemini API key not configured. Please contact support.');
     if (!mriBase64) throw new Error('Please upload an MRI image first.');
 
     const url = `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;

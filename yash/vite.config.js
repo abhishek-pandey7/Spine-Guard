@@ -7,7 +7,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
-    open: true,
+    port: 5175,
+    open: false,
   },
 });

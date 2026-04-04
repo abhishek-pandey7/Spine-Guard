@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 
 /* ── Inject responsive CSS once ──────────────────────────── */
 const responsiveCSS = `
-  .dd-root { display:flex; height:100vh; background:#08090e; color:#e2e8f0; font-family:'Inter',system-ui,sans-serif; overflow:hidden; }
+  .dd-root { display:flex; height:100vh; background:#ecf8f8; color:#2c3e3f; font-family:'DM Sans','Inter',system-ui,sans-serif; overflow:hidden; }
 
   /* Hamburger button – hidden on desktop */
   .dd-hamburger {
@@ -47,8 +47,8 @@ const responsiveCSS = `
   .dd-sidebar {
     width: 270px;
     min-width: 270px;
-    background: #0d0e17;
-    border-right: 1px solid rgba(139,92,246,0.12);
+    background: #eee4e1;
+    border-right: 1.5px solid rgba(178,150,125,0.3);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -119,32 +119,45 @@ function useInjectCSS(css) {
 }
 
 /* ── Shared style tokens ─────────────────────────────────── */
+const P = {
+  bg:      "#ecf8f8",
+  cream:   "#eee4e1",
+  primary: "#1e7d8c",
+  peach:   "#e6beae",
+  brown:   "#b2967d",
+  text:    "#2c3e3f",
+  text2:   "#5a6e6f",
+  text3:   "#8a9e9f",
+  border:  "rgba(178,150,125,0.3)",
+  card:    "#f5efec",
+  elevated:"#f9f4f1",
+};
+
 const S = {
-  sideHeader: { padding:"24px 20px 16px", borderBottom:"1px solid rgba(255,255,255,0.05)" },
+  sideHeader: { padding:"24px 20px 16px", borderBottom:`1px solid ${P.border}` },
   logo: { fontSize:22, marginBottom:6 },
-  brand: { fontSize:16, fontWeight:700, background:"linear-gradient(to right,#a78bfa,#818cf8)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" },
-  sub: { fontSize:11, color:"#64748b", marginTop:2 },
-  docCard: { padding:"14px 20px", borderBottom:"1px solid rgba(255,255,255,0.05)" },
-  avatar: (size=36) => ({ width:size, height:size, borderRadius:"50%", background:"linear-gradient(135deg,#7c3aed,#a855f7)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.4, fontWeight:700, color:"#fff", flexShrink:0 }),
-  docName: { fontSize:14, fontWeight:600, marginTop:8 },
-  docSub: { fontSize:12, color:"#64748b", marginTop:2 },
-  sectionLabel: { padding:"14px 20px 6px", fontSize:10, fontWeight:600, letterSpacing:1.5, color:"#334155" },
+  brand: { fontSize:16, fontWeight:700, fontStyle:"italic", color: P.primary, fontFamily:"'DM Serif Display', serif" },
+  sub: { fontSize:11, color:P.text3, marginTop:2 },
+  docCard: { padding:"14px 20px", borderBottom:`1px solid ${P.border}` },
+  avatar: (size=36) => ({ width:size, height:size, borderRadius:"50%", background:`linear-gradient(135deg,${P.primary},#2a9aad)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.4, fontWeight:700, color:"#fff", flexShrink:0 }),
+  docName: { fontSize:14, fontWeight:600, marginTop:8, color:P.text },
+  docSub: { fontSize:12, color:P.text2, marginTop:2 },
+  sectionLabel: { padding:"14px 20px 6px", fontSize:10, fontWeight:700, letterSpacing:1.5, color:P.text3 },
   list: { flex:1, overflowY:"auto", padding:"4px 8px" },
-  pBtn: (active) => ({ width:"100%", textAlign:"left", padding:"10px 12px", borderRadius:10, border:`1px solid ${active?"rgba(124,58,237,0.4)":"transparent"}`, background:active?"rgba(124,58,237,0.14)":"none", color:active?"#fff":"#94a3b8", cursor:"pointer", marginBottom:2, display:"flex", alignItems:"center", gap:10, fontSize:13, fontFamily:"inherit", transition:"all 0.15s" }),
-  pName: { fontWeight:500, fontSize:13 },
-  pMeta: { fontSize:11, color:"#64748b" },
-  logoutBtn: { margin:12, padding:10, background:"rgba(248,113,113,0.04)", border:"1px solid rgba(248,113,113,0.18)", color:"#f87171", borderRadius:8, fontSize:12, cursor:"pointer", fontFamily:"inherit" },
+  pBtn: (active) => ({ width:"100%", textAlign:"left", padding:"10px 12px", borderRadius:10, border:`1px solid ${active?P.primary:"transparent"}`, background:active?`rgba(30,125,140,0.12)`:"none", color:active?P.primary:P.text2, cursor:"pointer", marginBottom:2, display:"flex", alignItems:"center", gap:10, fontSize:13, fontFamily:"inherit", transition:"all 0.15s" }),
+  pName: { fontWeight:600, fontSize:13 },
+  pMeta: { fontSize:11, color:P.text3 },
+  logoutBtn: { margin:12, padding:10, background:"rgba(192,57,43,0.04)", border:"1px solid rgba(192,57,43,0.2)", color:"#c0392b", borderRadius:8, fontSize:12, cursor:"pointer", fontFamily:"inherit" },
   empty: { display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", gap:12 },
 };
 
 const bmiLabel = (b) => !b ? "—" : b<18.5?"Underweight":b<25?"Normal":b<30?"Overweight":"Obese";
-const bmiColor = (b) => !b?"#64748b":b<18.5?"#60a5fa":b<25?"#10b981":b<30?"#f59e0b":"#ef4444";
+const bmiColor = (b) => !b?"#8a9e9f":b<18.5?"#2a9aad":b<25?"#1e7d8c":b<30?"#d4a017":"#c0392b";
 
-/* ── Shared card wrapper ── */
 function Section({ title, children }) {
   return (
-    <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:14, padding:24, marginBottom:20 }}>
-      <div style={{ fontSize:10, fontWeight:600, letterSpacing:1.8, color:"#a78bfa", marginBottom:18 }}>{title}</div>
+    <div style={{ background:"#f5efec", border:"1px solid rgba(178,150,125,0.25)", borderRadius:14, padding:24, marginBottom:20 }}>
+      <div style={{ fontSize:10, fontWeight:700, letterSpacing:1.8, color:"#1e7d8c", marginBottom:18 }}>{title}</div>
       {children}
     </div>
   );
@@ -153,8 +166,8 @@ function Section({ title, children }) {
 function Field({ label, value, span }) {
   return (
     <div style={{ gridColumn: span ? `1 / -1` : undefined }}>
-      <div style={{ fontSize:11, color:"#64748b", marginBottom:5, letterSpacing:0.4 }}>{label}</div>
-      <div style={{ fontSize:14, color: value ? "#f1f5f9" : "#374151", lineHeight:1.65 }}>{value || "Not provided"}</div>
+      <div style={{ fontSize:11, color:"#8a9e9f", marginBottom:5, letterSpacing:0.4 }}>{label}</div>
+      <div style={{ fontSize:14, color: value ? "#2c3e3f" : "#b2967d", lineHeight:1.65 }}>{value || "Not provided"}</div>
     </div>
   );
 }
@@ -167,7 +180,7 @@ function Field({ label, value, span }) {
 function BmiBarChart({ patients }) {
   const cats = { Underweight:0, Normal:0, Overweight:0, Obese:0 };
   patients.forEach(p => { if (p.bmi) cats[bmiLabel(p.bmi)]++; });
-  const colors = { Underweight:"#60a5fa", Normal:"#10b981", Overweight:"#f59e0b", Obese:"#ef4444" };
+  const colors = { Underweight:"#2a9aad", Normal:"#1e7d8c", Overweight:"#d4a017", Obese:"#c0392b" };
   const max = Math.max(...Object.values(cats), 1);
   const W = 260, H = 24;
   return (
@@ -176,8 +189,8 @@ function BmiBarChart({ patients }) {
         <div key={cat} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }} className="dd-bmi-bar">
           <div style={{ width:90, fontSize:12, color:"#94a3b8", textAlign:"right", flexShrink:0 }}>{cat}</div>
           <svg width={W} height={H} style={{ flex:1, minWidth:0 }}>
-            <rect x={0} y={0} width="100%" height={H} rx={5} fill="rgba(255,255,255,0.04)" />
-            <rect x={0} y={0} width={Math.max((count/max)*W, count>0?6:0)} height={H} rx={5} fill={colors[cat]} opacity={0.85} style={{ transition:"width 0.6s ease" }} />
+                <rect x={0} y={0} width="100%" height={H} rx={5} fill="rgba(178,150,125,0.1)" />
+                <rect x={0} y={0} width={Math.max((count/max)*W, count>0?6:0)} height={H} rx={5} fill={colors[cat]} opacity={0.85} style={{ transition:"width 0.6s ease" }} />
           </svg>
           <div style={{ fontSize:12, color:"#64748b", width:18, flexShrink:0 }}>{count}</div>
         </div>
@@ -190,7 +203,7 @@ function BmiBarChart({ patients }) {
 function GenderDonut({ patients }) {
   const counts = {};
   patients.forEach(p => { if (p.gender) counts[p.gender] = (counts[p.gender]||0)+1; });
-  const colors = { Male:"#60a5fa", Female:"#f472b6", "Non-binary":"#a78bfa", "Prefer not to say":"#64748b" };
+  const colors = { Male:"#1e7d8c", Female:"#e6beae", "Non-binary":"#b2967d", "Prefer not to say":"#8a9e9f" };
   const total = patients.length || 1;
   const R = 52, r = 30, cx = 70, cy = 70;
   let angle = -Math.PI / 2;
@@ -207,16 +220,16 @@ function GenderDonut({ patients }) {
     <div style={{ display:"flex", alignItems:"center", gap:24, flexWrap:"wrap" }}>
       <svg width={140} height={140} style={{ flexShrink:0 }}>
         {slices.length ? slices.map((s,i) => <path key={i} d={s.path} fill={s.color} opacity={0.85} />) : <circle cx={cx} cy={cy} r={R} fill="rgba(255,255,255,0.05)" />}
-        <circle cx={cx} cy={cy} r={r} fill="#08090e" />
-        <text x={cx} y={cy+5} textAnchor="middle" fill="#e2e8f0" fontSize={14} fontWeight="700">{patients.length}</text>
-        <text x={cx} y={cy+20} textAnchor="middle" fill="#64748b" fontSize={9}>patients</text>
+        <circle cx={cx} cy={cy} r={r} fill="#ecf8f8" />
+        <text x={cx} y={cy+5} textAnchor="middle" fill="#2c3e3f" fontSize={14} fontWeight="700">{patients.length}</text>
+        <text x={cx} y={cy+20} textAnchor="middle" fill="#8a9e9f" fontSize={9}>patients</text>
       </svg>
       <div style={{ display:"flex", flexDirection:"column", gap:8, flex:1, minWidth:100 }}>
         {slices.map((s,i) => (
           <div key={i} style={{ display:"flex", alignItems:"center", gap:8, fontSize:12 }}>
             <div style={{ width:10, height:10, borderRadius:2, background:s.color, flexShrink:0 }} />
-            <span style={{ color:"#94a3b8", flex:1 }}>{s.label}</span>
-            <span style={{ color:"#e2e8f0", fontWeight:600 }}>{s.n}</span>
+            <span style={{ color:"#5a6e6f", flex:1 }}>{s.label}</span>
+            <span style={{ color:"#2c3e3f", fontWeight:600 }}>{s.n}</span>
           </div>
         ))}
         {slices.length === 0 && <span style={{ fontSize:12, color:"#374151" }}>No data yet</span>}
@@ -248,15 +261,15 @@ function AgeHistogram({ patients }) {
             return (
               <g key={label} transform={`translate(${x},0)`}>
                 <rect x={0} y={H-bh} width={BW} height={bh} rx={4} fill="url(#barGrad)" opacity={0.9} />
-                <text x={BW/2} y={H-bh-4} textAnchor="middle" fill="#a78bfa" fontSize={11} fontWeight="600">{n}</text>
-                <text x={BW/2} y={H+14} textAnchor="middle" fill="#64748b" fontSize={10}>{label}</text>
+                <text x={BW/2} y={H-bh-4} textAnchor="middle" fill="#1e7d8c" fontSize={11} fontWeight="600">{n}</text>
+                <text x={BW/2} y={H+14} textAnchor="middle" fill="#8a9e9f" fontSize={10}>{label}</text>
               </g>
             );
           })}
           <defs>
             <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#a78bfa" />
-              <stop offset="100%" stopColor="#7c3aed" />
+              <stop offset="0%" stopColor="#2a9aad" />
+              <stop offset="100%" stopColor="#1e7d8c" />
             </linearGradient>
           </defs>
         </svg>
@@ -283,10 +296,10 @@ function RedFlagChart({ patients }) {
           <div key={flag} style={{ marginBottom:12 }}>
             <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#94a3b8", marginBottom:4 }}>
               <span>{flag}</span>
-              <span style={{ color:"#f87171", fontWeight:600 }}>{n} <span style={{ color:"#64748b", fontWeight:400 }}>/ {patients.length}</span></span>
+              <span style={{ color:"#c0392b", fontWeight:600 }}>{n} <span style={{ color:"#8a9e9f", fontWeight:400 }}>/ {patients.length}</span></span>
             </div>
-            <div style={{ height:8, borderRadius:4, background:"rgba(255,255,255,0.05)", overflow:"hidden" }}>
-              <div style={{ height:"100%", width:`${pct*100}%`, borderRadius:4, background:"linear-gradient(to right,#ef4444,#f87171)", transition:"width 0.5s ease" }} />
+            <div style={{ height:8, borderRadius:4, background:"rgba(178,150,125,0.15)", overflow:"hidden" }}>
+              <div style={{ height:"100%", width:`${pct*100}%`, borderRadius:4, background:"linear-gradient(to right,#c0392b,#e74c3c)", transition:"width 0.5s ease" }} />
             </div>
           </div>
         );
@@ -302,14 +315,14 @@ function CustomIssuesCount({ patients }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:20, flexWrap:"wrap" }}>
       <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:36, fontWeight:700, color:"#a78bfa" }}>{withIssues.length}</div>
-        <div style={{ fontSize:11, color:"#64748b", marginTop:2 }}>of {patients.length} reported</div>
+        <div style={{ fontSize:36, fontWeight:700, color:"#1e7d8c" }}>{withIssues.length}</div>
+        <div style={{ fontSize:11, color:"#8a9e9f", marginTop:2 }}>of {patients.length} reported</div>
       </div>
       <div style={{ flex:1, minWidth:120 }}>
-        <div style={{ height:10, borderRadius:5, background:"rgba(255,255,255,0.05)", overflow:"hidden" }}>
-          <div style={{ height:"100%", width:`${pct}%`, borderRadius:5, background:"linear-gradient(to right,#a78bfa,#818cf8)", transition:"width 0.5s ease" }} />
+        <div style={{ height:10, borderRadius:5, background:"rgba(178,150,125,0.15)", overflow:"hidden" }}>
+          <div style={{ height:"100%", width:`${pct}%`, borderRadius:5, background:"linear-gradient(to right,#1e7d8c,#2a9aad)", transition:"width 0.5s ease" }} />
         </div>
-        <div style={{ fontSize:12, color:"#64748b", marginTop:6 }}>{pct}% of patients added custom concerns</div>
+        <div style={{ fontSize:12, color:"#8a9e9f", marginTop:6 }}>{pct}% of patients added custom concerns</div>
       </div>
     </div>
   );
@@ -321,8 +334,8 @@ function CustomIssuesCount({ patients }) {
 function AnalyticsPanel({ patients }) {
   return (
     <div style={{ maxWidth:860 }}>
-      <div style={{ fontSize:22, fontWeight:700, marginBottom:6 }}>Patient Analytics</div>
-      <div style={{ fontSize:13, color:"#64748b", marginBottom:28 }}>Aggregated overview across {patients.length} patient{patients.length!==1?"s":""}</div>
+      <div style={{ fontSize:22, fontWeight:700, marginBottom:6, color:"#2c3e3f" }}>Patient Analytics</div>
+      <div style={{ fontSize:13, color:"#5a6e6f", marginBottom:28 }}>Aggregated overview across {patients.length} patient{patients.length!==1?"s":""}</div>
 
       <div className="dd-analytics-grid">
         <Section title="GENDER BREAKDOWN">
@@ -353,6 +366,14 @@ function AnalyticsPanel({ patients }) {
 ══════════════════════════════════════════════════════════ */
 function PatientDetail({ p }) {
   const flags = Array.isArray(p.red_flags) ? p.red_flags : [];
+  const [sessions, setSessions] = useState([]);
+
+  useEffect(() => {
+    fetch(`http://localhost:8001/sessions/${p.id}`)
+      .then(r => r.json())
+      .then(data => setSessions(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [p.id]);
   return (
     <div style={{ maxWidth:860 }}>
       <div className="dd-pat-header">
@@ -446,13 +467,59 @@ function PatientDetail({ p }) {
           })()}
         </div>
       </Section>
-    </div>
+      <Section title="PHYSIOTHERAPY PROGRESS">
+        {sessions.length === 0 ? (
+          <div style={{ color:"#374151", fontSize:13 }}>No sessions recorded yet.</div>
+        ) : (
+          <>
+            {/* Pain trend chart */}
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:11, color:"#64748b", letterSpacing:1, marginBottom:10 }}>PAIN SCORE TREND</div>
+              <div style={{ display:"flex", alignItems:"flex-end", gap:6, height:80 }}>
+                {sessions.slice().reverse().map((s, i) => {
+                  const maxPain = 10;
+                  const beforeH = Math.round((s.pain_before / maxPain) * 70);
+                  const afterH = Math.round((s.pain_after / maxPain) * 70);
+                  return (
+                    <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flex:1, minWidth:28 }}>
+                      <div style={{ display:"flex", gap:2, alignItems:"flex-end", height:70 }}>
+                        <div title={`Before: ${s.pain_before}`} style={{ width:10, height:beforeH, background:"rgba(248,113,113,0.6)", borderRadius:"3px 3px 0 0" }} />
+                        <div title={`After: ${s.pain_after}`} style={{ width:10, height:afterH, background:"rgba(52,211,153,0.7)", borderRadius:"3px 3px 0 0" }} />
+                      </div>
+                      <div style={{ fontSize:9, color:"#4b5563" }}>S{i+1}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display:"flex", gap:16, marginTop:8 }}>
+                <span style={{ fontSize:11, color:"#f87171" }}>■ Before</span>
+                <span style={{ fontSize:11, color:"#34d399" }}>■ After</span>
+              </div>
+            </div>
+
+            {/* Session list */}
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {sessions.map((s, i) => (
+                <div key={i} style={{ padding:"12px 16px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                    <span style={{ fontSize:13, fontWeight:600 }}>{s.condition} · Phase {s.phase}</span>
+                    <span style={{ fontSize:11, color:"#64748b" }}>{new Date(s.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <div style={{ display:"flex", gap:16, fontSize:12, color:"#94a3b8" }}>
+                    <span>Pain: {s.pain_before} → <span style={{ color: s.pain_after < s.pain_before ? "#34d399" : "#f87171" }}>{s.pain_after}</span></span>
+                    <span>{(s.exercises || []).length} exercise(s)</span>
+                    {s.notes && <span style={{ color:"#64748b" }}>"{s.notes}"</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </Section>
+
+      </div>
   );
 }
-
-/* ══════════════════════════════════════════════════════════
-   Main DoctorDashboard
-══════════════════════════════════════════════════════════ */
 export default function DoctorDashboard({ profile, onLogout }) {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -6,7 +6,7 @@ header {
     justify-content: space-between;
     padding: 0 24px;
     border-bottom: 1px solid var(--border);
-    background: rgba(5, 11, 18, .96);
+    background: rgba(200,223,224,0.97);
     backdrop-filter: blur(16px);
     z-index: 400;
     position: relative;
@@ -160,10 +160,10 @@ header {
 .left {
     width: 240px;
     flex-shrink: 0;
-    border-right: 1px solid var(--border);
+    border-right: 1.5px solid rgba(30,125,140,0.2);
     display: flex;
     flex-direction: column;
-    background: rgba(5, 11, 18, .85);
+    background: linear-gradient(180deg, #eee4e1 0%, #ecf8f8 100%);
     overflow-y: auto;
 }
 
@@ -177,7 +177,7 @@ header {
     flex: 1;
     position: relative;
     overflow: hidden;
-    background: #040810;
+    background: #7a9e9f;
 }
 
 .mid .sketchfab-embed-wrapper {
@@ -226,8 +226,8 @@ header {
 }
 
 .overlay-card {
-    background: rgba(5, 11, 18, .9);
-    border: 1px solid var(--border2);
+    background: rgba(238,228,225,0.95);
+    border: 1.5px solid rgba(178,150,125,0.4);
     border-radius: 10px;
     padding: 14px 18px;
     backdrop-filter: blur(12px);
@@ -236,8 +236,8 @@ header {
 }
 
 .overlay-card.affected {
-    border-color: rgba(255, 68, 85, .5);
-    background: rgba(255, 30, 50, .08);
+    border-color: rgba(192, 57, 43, 0.7);
+    background: rgba(192, 57, 43, 0.12);
     animation: sketchPulse 2.5s ease infinite;
 }
 
@@ -246,24 +246,25 @@ header {
     font-size: 9px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: var(--text3);
+    color: var(--text2);
     margin-bottom: 6px;
 }
 
 .overlay-label.red {
-    color: var(--red)
+    color: #c0392b;
+    font-weight: 700;
 }
 
 .overlay-level {
     font-family: 'DM Serif Display', serif;
     font-size: 20px;
-    color: #fff;
+    color: #2c3e3f;
     margin-bottom: 3px;
 }
 
 .overlay-finding {
     font-size: 11px;
-    color: rgba(255, 255, 255, .55);
+    color: #5a6e6f;
     font-family: 'DM Mono', monospace;
     line-height: 1.4;
 }
@@ -306,16 +307,15 @@ header {
     width: 330px;
     flex-shrink: 0;
     border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    background: rgba(5, 11, 18, .9);
+    display: block;
+    overflow-y: auto;
+    background: rgba(200,223,224,0.95);
     backdrop-filter: blur(20px);
 }
 
 .rp-head {
     padding: 20px 20px 15px;
     border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
 }
 
 /* Return Button (is-docked only) */
@@ -349,67 +349,71 @@ header {
 
 .rp-tag {
     font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 3px;
+    font-size: 11px;
+    letter-spacing: 2px;
     text-transform: uppercase;
     margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 8px;
+    color: #1e7d8c;
+    font-weight: 700;
 }
 
 .rp-tag-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
 }
 
 .rp-title {
     font-family: 'DM Serif Display', serif;
-    font-size: 21px;
-    line-height: 1.14;
-    color: var(--text);
-    margin-bottom: 7px;
+    font-size: 26px;
+    line-height: 1.2;
+    color: #2c3e3f;
+    margin-bottom: 9px;
+    font-weight: 400;
 }
 
 .rp-sub {
-    font-size: 11.5px;
-    color: var(--text2);
-    line-height: 1.6;
+    font-size: 14px;
+    color: #3d5254;
+    line-height: 1.7;
+    font-weight: 400;
 }
 
 /* AI diagnosis banner */
 #diag-banner {
     margin: 14px 20px 0;
     padding: 10px 14px;
-    background: rgba(255, 68, 85, .08);
-    border: 1px solid rgba(255, 68, 85, .25);
+    background: rgba(192, 57, 43, 0.1);
+    border: 1.5px solid rgba(192, 57, 43, 0.4);
     border-radius: 8px;
     display: none;
 }
 
 .diag-banner-title {
     font-family: 'DM Mono', monospace;
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: var(--red);
-    margin-bottom: 4px;
+    color: #c0392b;
+    margin-bottom: 5px;
     display: flex;
     align-items: center;
     gap: 6px;
+    font-weight: 700;
 }
 
 .diag-banner-val {
-    font-size: 12px;
-    color: var(--text);
-    font-weight: 500;
+    font-size: 14px;
+    color: #2c3e3f;
+    font-weight: 600;
+    line-height: 1.5;
 }
 
 .rp-body {
-    flex: 1;
-    overflow-y: auto;
     padding: 16px 18px;
     display: flex;
     flex-direction: column;
@@ -456,18 +460,20 @@ header {
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(255, 50, 60, .15);
-    border: 1px solid rgba(255, 68, 85, .4);
+    background: rgba(238,228,225,0.97);
+    border: 1.5px solid rgba(192,57,43,0.5);
     border-radius: 8px;
     padding: 10px 20px;
     font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: #ff8899;
+    font-size: 12px;
+    color: #c0392b;
+    font-weight: 600;
     backdrop-filter: blur(10px);
     z-index: 999;
     display: none;
     max-width: 400px;
     text-align: center;
+    box-shadow: 0 4px 16px rgba(30,125,140,0.15);
 }
 
 #toast.show {

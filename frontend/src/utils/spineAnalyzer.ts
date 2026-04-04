@@ -14,7 +14,10 @@ export interface SpineAnalysisResult {
  * Landmarks follow MediaPipe Pose numbering:
  *   11=left shoulder, 12=right shoulder, 23=left hip, 24=right hip
  */
-export function analyzeSpine(landmarks: Landmark[]): SpineAnalysisResult {
+export function analyzeSpine(landmarks: Landmark[] | null | undefined): SpineAnalysisResult {
+  if (!landmarks || landmarks.length < 25) {
+    return { isBending: false, isTwisting: false, bendAngle: 0, twistDelta: 0, shoulderHipAngle: 180 };
+  }
   const lShoulder = landmarks[11];
   const rShoulder = landmarks[12];
   const lHip = landmarks[23];
