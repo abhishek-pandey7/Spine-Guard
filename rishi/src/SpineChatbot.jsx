@@ -59,7 +59,7 @@ export default function SpineChatbot({ patientContext, onReset }) {
       setCurrentChatId(newChat.id);
       setMessages([{
         role: "ai",
-        content: `Hello${patientContext?.user?.full_name ? ` ${patientContext.user.full_name}` : ""}! I'm SpineIQ — your AI recovery assistant. You're on Day ${patientContext?.days_post_op ?? "?"} of your ${patientContext?.surgery_type ?? "spine"} recovery. How can I help you today?`,
+        content: `Hello${patientContext?.user?.full_name ? ` ${patientContext.user.full_name}` : ""}! I'm SpineGuard — your AI recovery assistant. You're on Day ${patientContext?.days_post_op ?? "?"} of your ${patientContext?.surgery_type ?? "spine"} recovery. How can I help you today?`,
       }]);
       setError(null);
     } catch (err) {
@@ -81,7 +81,7 @@ export default function SpineChatbot({ patientContext, onReset }) {
         role: m.type === "human" ? "user" : "ai",
         content: m.content,
       }));
-      setMessages(history.length > 0 ? history : [{ role: "ai", content: "Hello! I'm your SpineIQ assistant. Ask me anything about your recovery." }]);
+      setMessages(history.length > 0 ? history : [{ role: "ai", content: "Hello! I'm your SpineGuard assistant. Ask me anything about your recovery." }]);
       setError(null);
     } catch {
       setError("Failed to load messages for this chat.");
@@ -165,7 +165,7 @@ export default function SpineChatbot({ patientContext, onReset }) {
       }
     } catch (err) {
       console.error(err);
-      setError("⚠️ Unable to reach SpineIQ backend. Make sure the FastAPI server is running on port 8000.");
+      setError("⚠️ Unable to reach SpineGuard backend. Make sure the FastAPI server is running on port 8000.");
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsTyping(false);
@@ -195,7 +195,7 @@ export default function SpineChatbot({ patientContext, onReset }) {
       <aside className="chat-sidebar">
         <div className="sidebar-header">
           <span className="sidebar-logo">🦴</span>
-          <span className="sidebar-title">SpineIQ</span>
+          <span className="sidebar-title">SpineGuard</span>
           <button className="new-chat-btn" onClick={() => createNewChat()} title="New Chat">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -236,7 +236,7 @@ export default function SpineChatbot({ patientContext, onReset }) {
       <main className="chat-main">
         <header className="chat-header">
           <div className="header-info">
-            <h1>AI SpineIQ</h1>
+            <h1>AI SpineGuard</h1>
             <p>{patientContext?.surgery_type} · Day {patientContext?.days_post_op}</p>
           </div>
           <div className="header-actions">
@@ -263,7 +263,7 @@ export default function SpineChatbot({ patientContext, onReset }) {
                 )}
                 {renderContent(m.content)}
               </div>
-              <div className="bubble-meta">{m.role === "ai" ? "SpineIQ" : "You"}</div>
+              <div className="bubble-meta">{m.role === "ai" ? "SpineGuard" : "You"}</div>
             </div>
           ))}
           {isTyping && (

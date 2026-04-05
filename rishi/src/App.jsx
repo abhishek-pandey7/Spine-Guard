@@ -283,8 +283,8 @@ export default function App() {
   if (!session) return (
     <div className="setup-bg">
       <div className="setup-card auth-card">
-        <div className="setup-logo">🦴</div>
-        <h1 className="setup-title">SpineIQ</h1>
+        <div className="setup-logo"><img src="/logo.jpeg" alt="SpineGuard" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} /></div>
+        <h1 className="setup-title">SpineGuard</h1>
         <p className="setup-subtitle">Sign in to start your recovery journey</p>
         <button className="google-btn" onClick={handleGoogleLogin}>
           <svg viewBox="0 0 24 24" width="20" height="20">
@@ -303,7 +303,7 @@ export default function App() {
     <div className="setup-bg">
       <div className="setup-card onboarding-card">
         <div className="setup-logo">👤</div>
-        <h1 className="setup-title">Welcome to SpineIQ</h1>
+        <h1 className="setup-title">Welcome to SpineGuard</h1>
         <p className="setup-subtitle">Let's get you set up in just a moment.</p>
         <form className="setup-form" onSubmit={handleOnboardingSubmit}>
           <div className="form-row">
@@ -560,7 +560,7 @@ export default function App() {
           </div>
           <div className="setup-logo">👨‍⚕️</div>
           <h1 className="setup-title">Choose Your Doctor</h1>
-          <p className="setup-subtitle">Select a doctor who will oversee your recovery. You can always reach out to them through SpineIQ.</p>
+          <p className="setup-subtitle">Select a doctor who will oversee your recovery. You can always reach out to them through SpineGuard.</p>
           {doctorsLoading ? <p style={{ color:"#64748b", textAlign:"center" }}>Loading doctors...</p>
             : doctors.length === 0 ? <p style={{ color:"#64748b", textAlign:"center", fontSize:14 }}>No doctors registered yet. Check back soon.</p>
             : (
@@ -617,8 +617,8 @@ export default function App() {
       <>
         {settingsModal}
         <button className="float-back-btn" onClick={goBack}>← Back</button>
-        <div style={{ width:"100vw", height:"100vh", position:"relative", background:"#080d14" }}>
-          <iframe src="/spineviz/index.html" style={{ width:"100%", height:"100%", border:"none" }} title="SpineViz AI" />
+        <div style={{ width:"100vw", height:"100vh", position:"relative", background:"#ecf8f8" }}>
+          <iframe src="http://localhost:5176" style={{ width:"100%", height:"100%", border:"none" }} title="SpineViz AI" />
         </div>
       </>
     </PageTransition>
@@ -630,7 +630,7 @@ export default function App() {
         {settingsModal}
         <button className="float-back-btn" onClick={goBack}>← Back</button>
         <div style={{ width:"100vw", height:"100vh", position:"relative", background:"#ecf8f8" }}>
-        <iframe src="http://localhost:5174" allow="camera; microphone; display-capture" allowFullScreen style={{ width:"100%", height:"100%", border:"none" }} title="Physio Exercise Monitor" />
+        <iframe src="http://localhost:5175" allow="camera; microphone; display-capture" allowFullScreen style={{ width:"100%", height:"100%", border:"none" }} title="Physio Exercise Monitor" />
         </div>
       </>
     </PageTransition>

@@ -5,7 +5,7 @@ import PhaseSelector from './PhaseSelector';
 import CalibrationScreen from './CalibrationScreen';
 import CheckInModal from './CheckInModal';
 import ConditionSelector from './ConditionSelector';
-import RedFlagSurvey from './RedFlagSurvey';
+import RedFlagSurvey, { type SurveyData } from './RedFlagSurvey';
 import ProgressPanel from './ProgressPanel';
 import SessionSummary from './SessionSummary';
 import { useSessionStore } from '../stores/sessionStore';
@@ -28,12 +28,15 @@ export default function Dashboard() {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [sessionData, setSessionData] = useState<Record<string, unknown> | null>(null);
   const [exerciseResults, setExerciseResults] = useState<ExerciseResult[]>([]);
+  const [surveyData, setSurveyData] = useState<SurveyData | undefined>(undefined);
+  const [painBefore, setPainBefore] = useState(5);
   const [restSecondsLeft, setRestSecondsLeft] = useState(0);
   const { setPainScore, resetSession } = useSessionStore();
   const phases = getPhasesByCondition(selectedCondition);
   const currentPhaseExercises = phases[selectedPhase - 1]?.exercises ?? [];
 
   const handleCheckIn = (pain: number) => {
+    setPainBefore(pain);
     setPainScore(pain);
     if (pain > 4) setSelectedPhase(1);
     setScreen('condition_select');
@@ -110,7 +113,10 @@ export default function Dashboard() {
     setScreen('survey');
   }, []);
 
-  const handleSurveyComplete = () => setScreen('summary');
+  const handleSurveyComplete = (survey: SurveyData) => {
+    setSurveyData(survey);
+    setScreen('summary');
+  };
 
   const handleRestart = () => {
     resetSession();
@@ -176,10 +182,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {screen === 'survey' && <RedFlagSurvey onComplete={handleSurveyComplete} />}
+      {screen === 'survey' && <RedFlagSurvey onComplete={handleSurveyComplete} painBefore={painBefore} />}
 
       {screen === 'summary' && sessionData && (
-        <SessionSummary data={sessionData} onRestart={handleRestart} />
+        <SessionSummary
+          data={{ ...sessionData, painBefore }}
+          surveyData={surveyData}
+          onRestart={handleRestart}
+        />
       )}
     </div>
   );

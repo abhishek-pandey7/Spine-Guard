@@ -45,8 +45,8 @@ TRUNK_ROTATION_TOL = 0.06  # normalised y — left vs right shoulder
 PLANTED_KNEE_MIN   = 70    # planted knee angle min
 PLANTED_KNEE_MAX   = 110   # planted knee angle max
 
-EXTEND_ARM_Y_THRESH = 0.05  # wrist rises above shoulder by this much (norm) = arm extended
-EXTEND_LEG_Y_THRESH = 0.04  # ankle rises above hip by this much (norm) = leg extended
+EXTEND_ARM_Y_THRESH = 0.06  # wrist rises above shoulder by this much (norm) = arm extended
+EXTEND_LEG_Y_THRESH = 0.05  # ankle rises above hip by this much (norm) = leg extended
 
 # Stores all sampled reference frames (not averaged)
 _reference_frames = None
@@ -81,6 +81,8 @@ def _horizontal_angle(p1, p2):
     """Angle of line p1->p2 from horizontal (degrees)."""
     dx = p2[0] - p1[0]
     dy = p2[1] - p1[1]
+    if abs(dx) < 1e-6 and abs(dy) < 1e-6:
+        return 0.0
     return float(abs(np.degrees(np.arctan2(dy, dx))))
 
 
@@ -175,7 +177,7 @@ def _load_reference():
 
 def _compute_similarity(user_angles, ref_frames):
     """Find the best matching reference frame and return its score."""
-    MAX_DIFF   = 30.0
+    MAX_DIFF   = 40.0
     best_score = 0.0
 
     for ref_angles in ref_frames:
@@ -193,25 +195,168 @@ def _compute_similarity(user_angles, ref_frames):
 
 
 def evaluate(landmarks, state=None):
-    """
-    Parameters
-    ----------
-    landmarks : mediapipe landmark list
-    state     : dict (mutable carry-forward)
-
-    Returns
-    -------
-    result dict — same structure as other exercises
-    """
     if state is None:
         state = {
-            "phase":        "REST",
-            "hold_time":    0.0,
-            "hold_target":  HOLD_TARGET_DEFAULT,
+            "phase":        "REST",   # REST → EXTEND → REST = 1 rep
             "rep_count":    0,
             "_last_ts":     None,
             "_exit_frames": 0,
+            "_hold_frames": 0,   # must hold extended for N frames before counting
         }
+
+    import time
+    now = time.time()
+    state["_last_ts"] = now
+
+    ref_frames  = _load_reference()
+    user_angles = _extract_angles(landmarks)
+
+    similarity = _compute_similarity(user_angles, ref_frames) if ref_frames else 0.0
+    passed     = similarity >= SIMILARITY_THRESHOLD
+
+    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
+    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+    l_hip      = _pt(landmarks, LM.LEFT_HIP)
+    r_hip      = _pt(landmarks, LM.RIGHT_HIP)
+    l_knee     = _pt(landmarks, LM.LEFT_KNEE)
+    r_knee     = _pt(landmarks, LM.RIGHT_KNEE)
+    l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
+    r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
+    l_wrist    = _pt(landmarks, LM.LEFT_WRIST)
+    r_wrist    = _pt(landmarks, LM.RIGHT_WRIST)
+    l_elbow    = _pt(landmarks, LM.LEFT_ELBOW)
+    r_elbow    = _pt(landmarks, LM.RIGHT_ELBOW)
+
+    shoulder_mid = (l_shoulder + r_shoulder) / 2
+    hip_mid      = (l_hip + r_hip) / 2
+
+    spine_angle = _horizontal_angle(shoulder_mid, hip_mid)
+    spine_ok    = spine_angle <= SPINE_LEVEL_TOL
+    hip_sym     = abs(l_hip[1] - r_hip[1])
+    hip_ok      = hip_sym <= HIP_LEVEL_TOL
+    trunk_rot   = abs(l_shoulder[1] - r_shoulder[1])
+    rotation_ok = trunk_rot <= TRUNK_ROTATION_TOL
+
+    l_arm_extended = (l_shoulder[1] - l_wrist[1]) > EXTEND_ARM_Y_THRESH
+    r_arm_extended = (r_shoulder[1] - r_wrist[1]) > EXTEND_ARM_Y_THRESH
+    arm_extended   = l_arm_extended or r_arm_extended
+
+    if l_arm_extended:
+        arm_angle = _angle(l_shoulder, l_elbow, l_wrist)
+        arm_pt    = l_wrist
+    elif r_arm_extended:
+        arm_angle = _angle(r_shoulder, r_elbow, r_wrist)
+        arm_pt    = r_wrist
+    else:
+        arm_angle = 0.0
+        arm_pt    = l_wrist
+
+    arm_ok = (arm_angle >= ARM_ANGLE_MIN) if arm_extended else True
+
+    l_leg_extended = (l_hip[1] - l_ankle[1]) > EXTEND_LEG_Y_THRESH
+    r_leg_extended = (r_hip[1] - r_ankle[1]) > EXTEND_LEG_Y_THRESH
+
+    if l_leg_extended:
+        planted_knee_angle = _angle(r_hip, r_knee, r_ankle)
+    else:
+        planted_knee_angle = _angle(l_hip, l_knee, l_ankle)
+
+    planted_ok = PLANTED_KNEE_MIN <= planted_knee_angle <= PLANTED_KNEE_MAX
+
+    l_vis               = landmarks[LM.LEFT_SHOULDER.value].visibility
+    r_vis               = landmarks[LM.RIGHT_SHOULDER.value].visibility
+    landmarks_confident = l_vis > 0.3 and r_vis > 0.3
+
+    # Use similarity-based detection since geometric y-thresholds don't work for all-fours
+    # High similarity = in extended position, low = at rest
+    SIM_EXTEND_THRESH = 0.55  # similarity to enter EXTEND phase
+    SIM_REST_THRESH   = 0.35  # similarity drops below this = returned to rest
+
+    is_extended = passed and landmarks_confident  # similarity >= SIMILARITY_THRESHOLD
+    is_rest     = similarity < SIM_REST_THRESH and landmarks_confident
+
+    rep_complete = False
+
+    if state["phase"] == "REST":
+        if is_extended:
+            state["phase"]        = "EXTEND"
+            state["_exit_frames"] = 0
+            state["_hold_frames"] = 0
+
+    elif state["phase"] == "EXTEND":
+        if not landmarks_confident:
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 20:
+                state["phase"]        = "REST"
+                state["_hold_frames"] = 0
+        elif is_extended:
+            state["_hold_frames"] += 1
+            state["_exit_frames"] = 0
+            # Count rep after holding for 90 frames (~3 seconds)
+            if state["_hold_frames"] >= 90:
+                state["rep_count"] += 1
+                rep_complete        = True
+                state["phase"]      = "REST"
+                state["_hold_frames"] = 0
+                print(f"[BirdDog] ✅ REP COMPLETE! Total: {state['rep_count']}")
+        else:
+            # Similarity dropped — reset
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 10:
+                state["phase"]        = "REST"
+                state["_hold_frames"] = 0
+
+    pct = int(similarity * 100)
+    if not ref_frames:
+        primary_cue = "No reference video found — add bird_dog_reference.mp4"
+    elif not landmarks_confident:
+        primary_cue = "Move closer so I can see your pose."
+    elif state["phase"] == "EXTEND":
+        if passed:
+            primary_cue = f"Good! Hold then return to start. ({pct}%)"
+        elif not spine_ok:
+            primary_cue = "Keep your back flat — don't let it sag."
+        elif not hip_ok:
+            primary_cue = "Keep your hips level."
+        elif not arm_ok:
+            primary_cue = "Reach arm forward, parallel to floor."
+        else:
+            primary_cue = f"Extend arm and opposite leg. {pct}% match."
+    else:
+        primary_cue = "On all fours — extend opposite arm and leg."
+
+    GREEN = (0, 220, 80)
+    RED   = (0, 60, 255)
+
+    joint_points = [
+        (l_shoulder[0],   l_shoulder[1],   GREEN if rotation_ok else RED, "L-Shldr"),
+        (r_shoulder[0],   r_shoulder[1],   GREEN if rotation_ok else RED, "R-Shldr"),
+        (l_hip[0],        l_hip[1],        GREEN if hip_ok      else RED, "L-Hip"),
+        (r_hip[0],        r_hip[1],        GREEN if hip_ok      else RED, "R-Hip"),
+        (arm_pt[0],       arm_pt[1],       GREEN if arm_ok      else RED, "Wrist"),
+        (l_knee[0],       l_knee[1],       GREEN if planted_ok  else RED, "Knee"),
+        (shoulder_mid[0], shoulder_mid[1], GREEN if spine_ok    else RED, "Spine"),
+    ]
+
+    checks = {
+        "similarity":    (passed,       float(pct),                          f"Match: {pct}% — aim for 50%+"),
+        "spine_level":   (spine_ok,     float(spine_angle) if not np.isnan(spine_angle) else 0.0,   "Keep your back flat."),
+        "hip_level":     (hip_ok,       float(hip_sym) if not np.isnan(hip_sym) else 0.0,           "Keep your hips level."),
+        "arm_extension": (arm_ok,       float(arm_angle) if not np.isnan(arm_angle) else 0.0,       "Reach arm forward."),
+        "no_rotation":   (rotation_ok,  float(trunk_rot) if not np.isnan(trunk_rot) else 0.0,       "Don't twist shoulders."),
+        "planted_knee":  (planted_ok,   float(planted_knee_angle) if not np.isnan(planted_knee_angle) else 0.0, "Stay stable on planted knee."),
+    }
+
+    return {
+        "passed":        passed,
+        "checks":        checks,
+        "primary_cue":   primary_cue,
+        "joint_points":  joint_points,
+        "state":         state,
+        "rep_complete":  rep_complete,
+        "rep_count":     state["rep_count"],
+        "is_time_based": False,
+    }
 
     import time
     now = time.time()
@@ -383,4 +528,11 @@ META = {
     "phases":      ["Muscle Strain Ph2", "Sciatica Ph2", "Herniated Disc Ph2",
                     "Postural Pain Ph3", "Chronic LBP Ph1", "Facet Joint Ph2"],
     "rep_trigger": "arm_extension",
+}
+META = {
+    "name":        "Bird Dog",
+    "camera_hint": "Side-on to camera. On hands and knees.",
+    "phases":      ["Muscle Strain Ph2", "Sciatica Ph2", "Herniated Disc Ph2",
+                    "Postural Pain Ph3", "Chronic LBP Ph1", "Facet Joint Ph2"],
+    "rep_trigger": "extend_return",
 }

@@ -1,4 +1,7 @@
 /* ── HEADER ─────────────────────────────────────────────── */
+/* Font import for consistency */
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
 header {
     height: 52px;
     display: flex;
@@ -226,19 +229,21 @@ header {
 }
 
 .overlay-card {
-    background: rgba(238,228,225,0.95);
+    background: rgba(238,228,225,0.97);
     border: 1.5px solid rgba(178,150,125,0.4);
     border-radius: 10px;
     padding: 14px 18px;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
     min-width: 160px;
     text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
 }
 
 .overlay-card.affected {
     border-color: rgba(192, 57, 43, 0.7);
-    background: rgba(192, 57, 43, 0.12);
+    background: rgba(245, 235, 230, 0.97);
     animation: sketchPulse 2.5s ease infinite;
+    box-shadow: 0 4px 20px rgba(192,57,43,0.2);
 }
 
 .overlay-label {

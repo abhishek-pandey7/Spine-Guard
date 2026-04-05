@@ -8,6 +8,7 @@ export interface WSEvaluationResult {
   joint_points: [number, number, number[], string][];
   rep_complete: boolean;
   rep_count: number;
+  primary_angle?: number;
   error?: string;
 }
 

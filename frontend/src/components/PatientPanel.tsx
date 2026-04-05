@@ -10,6 +10,7 @@ import { useExerciseWebSocket } from '../hooks/useExerciseWebSocket';
 import { analyzeSpine } from '../utils/spineAnalyzer';
 import { Camera, CameraOff, StopCircle, Sun, Clock } from 'lucide-react';
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
+import { useSessionStore } from '../stores/sessionStore';
 
 // MediaPipe landmark indices
 const LM = {
@@ -61,6 +62,7 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
   const { speak, speakPriority, speakChecks } = useVoiceEngine();
   const { currentRep, peakAngle, endSession } = useSessionTracker();
   const { lightingStatus, getLightingMessage, checkLighting } = useLightingCheck();
+  const { updatePeakAngle } = useSessionStore();
 
   const exerciseKey = exerciseIdToKey(exercise.id);
   const targetReps = exercise.repsPerSet * exercise.sets;
@@ -125,6 +127,11 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
     const pythonRepCount = lastResult.rep_count ?? 0;
     setWsRepCount(pythonRepCount);
     setWsCue(lastResult.primary_cue);
+
+    // Update peak angle from backend
+    if (lastResult.primary_angle && lastResult.primary_angle > 0) {
+      updatePeakAngle(lastResult.primary_angle);
+    }
 
     // Check if exercise is complete (reached target reps)
     if (pythonRepCount >= targetReps && !completeEmittedRef.current) {
@@ -251,6 +258,21 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
   const displayRepCount = wsRepCount > 0 ? wsRepCount : currentRep;
   const repProgress = targetReps > 0 ? Math.min((displayRepCount / targetReps) * 100, 100) : 0;
 
+  // Extract primary angle from backend
+  const displayAngle = (() => {
+    if (lastResult?.primary_angle && lastResult.primary_angle > 0) {
+      return lastResult.primary_angle.toFixed(1);
+    }
+    if (lastResult?.checks) {
+      for (const [key, val] of Object.entries(lastResult.checks)) {
+        if (key !== 'similarity' && Array.isArray(val) && typeof val[1] === 'number' && val[1] > 0) {
+          return val[1].toFixed(1);
+        }
+      }
+    }
+    return peakAngle.toFixed(1);
+  })();
+
   return (
     <div className="patient-panel">
       <div className="patient-header">
@@ -349,7 +371,7 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
         </div>
         <div className="metric-card">
           <span className="metric-label">Peak Angle</span>
-          <span className="metric-value blue">{peakAngle.toFixed(1)}°</span>
+          <span className="metric-value blue">{displayAngle}°</span>
         </div>
         <div className="metric-card">
           <span className="metric-label">Time</span>

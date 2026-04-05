@@ -27,7 +27,7 @@ import cv2
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-SIMILARITY_THRESHOLD = 0.80
+SIMILARITY_THRESHOLD = 0.50
 HOLD_TARGET_DEFAULT  = 30.0
 SAMPLE_FRAMES        = 20
 
@@ -140,7 +140,7 @@ def _load_reference():
 
 def _compute_similarity(user_angles, ref_frames):
     """Find the best matching reference frame and return its score."""
-    MAX_DIFF   = 30.0
+    MAX_DIFF   = 40.0
     best_score = 0.0
 
     for ref_angles in ref_frames:

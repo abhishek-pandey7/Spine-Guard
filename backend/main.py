@@ -89,18 +89,38 @@ class ExerciseSession:
             for j in joints
         ]
 
-        # Serialize checks (tuples → lists)
+        # Serialize checks (tuples → lists), convert numpy types to Python natives
         checks_out = {}
-        for name, (passed, value, cue) in result.get("checks", {}).items():
-            checks_out[name] = [passed, value, cue]
+        for name, val in result.get("checks", {}).items():
+            passed, value, cue = val
+            checks_out[name] = [bool(passed), float(value), str(cue)]
+
+        # Extract primary angle — first non-similarity numeric check value
+        primary_angle = 0.0
+        for k, v in result.get("checks", {}).items():
+            if k != "similarity" and isinstance(v, (list, tuple)) and len(v) > 1:
+                try:
+                    val = float(v[1])
+                    if val > 0:
+                        primary_angle = val
+                        break
+                except (TypeError, ValueError):
+                    pass
+        # Fallback: use similarity value scaled to degrees
+        if primary_angle == 0.0 and "similarity" in result.get("checks", {}):
+            try:
+                primary_angle = float(result["checks"]["similarity"][1])
+            except (TypeError, ValueError, IndexError):
+                pass
 
         return {
-            "passed": result["passed"],
+            "passed": bool(result["passed"]),
             "checks": checks_out,
-            "primary_cue": result["primary_cue"],
+            "primary_cue": str(result["primary_cue"]),
             "joint_points": serializable_joints,
-            "rep_complete": result.get("rep_complete", False),
-            "rep_count": self.rep_count,
+            "rep_complete": bool(result.get("rep_complete", False)),
+            "rep_count": int(self.rep_count),
+            "primary_angle": float(primary_angle),
         }
 
 
@@ -157,6 +177,9 @@ async def ws_exercise(websocket: WebSocket, exercise_key: str):
     except WebSocketDisconnect:
         sessions.pop(websocket, None)
     except Exception as e:
+        import traceback
+        print(f"[WS ERROR] {exercise_key}: {e}")
+        traceback.print_exc()
         sessions.pop(websocket, None)
         try:
             await websocket.send_json({"error": str(e)})

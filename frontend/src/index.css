@@ -8,9 +8,9 @@
   --bg-elevated: #f9f4f1;
   --border: rgba(178,150,125,0.25);
   --border-bright: rgba(178,150,125,0.5);
-  --text-primary: #2c3e3f;
-  --text-secondary: #5a6e6f;
-  --text-muted: #8a9e9f;
+  --text-primary: #1a2a2b;
+  --text-secondary: #3d5254;
+  --text-muted: #6a8e8f;
   --green: #1e7d8c;
   --green-dim: #155f6a;
   --blue: #2a9aad;
@@ -189,7 +189,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; outline: 
   border-radius: var(--radius); padding: 20px; cursor: pointer; transition: all .2s;
 }
 .exercise-card:hover { border-color: var(--border-bright); transform: translateY(-2px); }
-.exercise-card.selected { border-width: 2px; }
+.exercise-card.selected { border-width: 2px; border-color: var(--green); background: rgba(30,125,140,0.08); }
 
 .ex-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .ex-icon { font-size: 24px; }

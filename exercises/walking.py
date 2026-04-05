@@ -136,7 +136,7 @@ def _load_reference():
 
 
 def _compute_similarity(user_angles, ref_angles):
-    MAX_DIFF = 30.0
+    MAX_DIFF   = 40.0
     scores   = []
     for key in ref_angles:
         if key not in user_angles:

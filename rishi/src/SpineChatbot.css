@@ -7,9 +7,9 @@
   --primary: #1e7d8c;
   --peach:   #e6beae;
   --brown:   #b2967d;
-  --text:    #2c3e3f;
-  --text2:   #5a6e6f;
-  --text3:   #8a9e9f;
+  --text:    #1a2a2b;
+  --text2:   #3d5254;
+  --text3:   #6a8e8f;
   --border:  rgba(178,150,125,0.3);
   --shadow:  rgba(30,125,140,0.12);
 }
@@ -454,4 +454,52 @@ textarea::placeholder { color: var(--text3); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── Chatbot Polish Layer ── */
+
+/* Sidebar — subtle gradient */
+.chat-sidebar {
+  background: linear-gradient(180deg, #eee4e1 0%, #e8ddd9 100%);
+  box-shadow: 2px 0 12px rgba(178,150,125,0.08);
+}
+
+/* Chat header — glass effect */
+.chat-header {
+  background: rgba(238,228,225,0.92);
+  box-shadow: 0 1px 12px rgba(178,150,125,0.1);
+}
+
+/* Message bubbles — richer shadows */
+.user .bubble-content {
+  box-shadow:
+    0 4px 16px rgba(30,125,140,0.20),
+    0 1px 0 rgba(255,255,255,0.15) inset;
+}
+
+.ai .bubble-content {
+  box-shadow: 0 2px 8px rgba(178,150,125,0.08);
+}
+
+/* Input row — glow on focus */
+.input-row:focus-within {
+  box-shadow:
+    0 0 0 3px rgba(30,125,140,0.10),
+    0 4px 16px rgba(30,125,140,0.08);
+}
+
+/* Active chat item */
+.chat-item.active {
+  box-shadow: 0 2px 8px rgba(30,125,140,0.10);
+}
+
+/* New chat button */
+.new-chat-btn:hover {
+  box-shadow: 0 4px 12px rgba(30,125,140,0.25);
+}
+
+/* Message animation */
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }

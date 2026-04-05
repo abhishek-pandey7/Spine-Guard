@@ -153,7 +153,7 @@ def _load_reference():
 
 def _compute_similarity(user_angles, ref_frames):
     """Find the best matching reference frame and return its score."""
-    MAX_DIFF   = 30.0
+    MAX_DIFF   = 40.0
     best_score = 0.0
 
     for ref_angles in ref_frames:
@@ -173,9 +173,7 @@ def _compute_similarity(user_angles, ref_frames):
 def evaluate(landmarks, state=None):
     if state is None:
         state = {
-            "phase":        "REST",
-            "hold_time":    0.0,
-            "hold_target":  HOLD_TARGET_DEFAULT,
+            "phase":        "STAND",   # STAND → DOWN → STAND = 1 rep
             "rep_count":    0,
             "_last_ts":     None,
             "_exit_frames": 0,
@@ -183,7 +181,6 @@ def evaluate(landmarks, state=None):
 
     import time
     now = time.time()
-    dt  = min(now - state["_last_ts"], 0.1) if state["_last_ts"] else 0.0
     state["_last_ts"] = now
 
     ref_frames  = _load_reference()
@@ -192,102 +189,88 @@ def evaluate(landmarks, state=None):
     similarity = _compute_similarity(user_angles, ref_frames) if ref_frames else 0.0
     passed     = similarity >= SIMILARITY_THRESHOLD
 
-    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
-    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
-    l_hip      = _pt(landmarks, LM.LEFT_HIP)
-    r_hip      = _pt(landmarks, LM.RIGHT_HIP)
-    l_knee     = _pt(landmarks, LM.LEFT_KNEE)
-    r_knee     = _pt(landmarks, LM.RIGHT_KNEE)
-    l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
-    r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
-
-    shoulder = (l_shoulder + r_shoulder) / 2
-    hip      = (l_hip + r_hip) / 2
-    knee     = (l_knee + r_knee) / 2
-    ankle    = (l_ankle + r_ankle) / 2
+    l_hip   = _pt(landmarks, LM.LEFT_HIP)
+    r_hip   = _pt(landmarks, LM.RIGHT_HIP)
+    l_knee  = _pt(landmarks, LM.LEFT_KNEE)
+    r_knee  = _pt(landmarks, LM.RIGHT_KNEE)
+    l_ankle = _pt(landmarks, LM.LEFT_ANKLE)
+    r_ankle = _pt(landmarks, LM.RIGHT_ANKLE)
 
     landmarks_confident = (
-        landmarks[LM.LEFT_SHOULDER.value].visibility > 0.4 and
-        landmarks[LM.LEFT_HIP.value].visibility > 0.4 and
-        landmarks[LM.LEFT_KNEE.value].visibility > 0.4
+        landmarks[LM.LEFT_HIP.value].visibility > 0.3 and
+        landmarks[LM.LEFT_KNEE.value].visibility > 0.3 and
+        landmarks[LM.LEFT_ANKLE.value].visibility > 0.3
     )
 
-    hip_drop = hip[1] - knee[1]
-    is_lunge = hip_drop > 0.015 and landmarks_confident
+    # Use the front knee angle to detect lunge depth
+    l_knee_angle = _angle(l_hip, l_knee, l_ankle)
+    r_knee_angle = _angle(r_hip, r_knee, r_ankle)
+    # Front knee is the more bent one
+    min_knee_angle = min(l_knee_angle, r_knee_angle)
 
-    # Allow similarity alone to trigger HOLD — hip_drop threshold can miss
-    # a good lunge if the camera angle or user height compresses the y-axis.
-    entering_hold = is_lunge or (passed and landmarks_confident)
+    # Lunge down = front knee < 110° (bent)
+    # Standing = both knees > 150° (straight)
+    is_down     = min_knee_angle < 110 and landmarks_confident
+    is_standing = min_knee_angle > 150 and landmarks_confident
 
     rep_complete = False
 
-    if state["phase"] == "REST":
-        if landmarks_confident and entering_hold:
-            state["phase"]        = "HOLD"
+    if state["phase"] == "STAND":
+        if is_down:
+            state["phase"]        = "DOWN"
             state["_exit_frames"] = 0
 
-    elif state["phase"] == "HOLD":
-        if not landmarks_confident:
+    elif state["phase"] == "DOWN":
+        if is_standing:
+            state["rep_count"] += 1
+            rep_complete        = True
+            state["phase"]      = "STAND"
+        elif not landmarks_confident:
             state["_exit_frames"] += 1
-            if state["_exit_frames"] > 15:
-                state["phase"]        = "REST"
-                state["_exit_frames"] = 0
-                rep_complete          = True
-        else:
-            state["_exit_frames"] = 0
-            # Exit HOLD only when geometric lunge drops AND similarity fails
-            exiting = not is_lunge and not passed
-            if exiting:
-                state["phase"]      = "REST"
-                state["rep_count"] += 1
-                rep_complete        = True
-            else:
-                # Accumulate hold time whenever pose is good (similarity-gated)
-                if passed:
-                    state["hold_time"] += dt
-
-    if state["hold_time"] >= state["hold_target"]:
-        rep_complete       = True
-        state["hold_time"] = 0.0
-        state["phase"]     = "REST"
+            if state["_exit_frames"] > 20:
+                state["phase"] = "STAND"
 
     pct = int(similarity * 100)
     if not ref_frames:
         primary_cue = "No reference video found — add lunge_reference.mp4"
     elif not landmarks_confident:
-        primary_cue = "Move closer so I can see your pose."
-    elif passed:
-        primary_cue = "Good. Push back to standing."
-    elif not is_lunge:
-        primary_cue = "Step forward and lower your hips."
+        primary_cue = "Move closer so I can see your full body."
+    elif state["phase"] == "DOWN":
+        if passed:
+            primary_cue = f"Good lunge! Push back up. ({pct}% match)"
+        else:
+            primary_cue = f"Step further — {pct}% match. Front knee over ankle."
     else:
-        primary_cue = f"Adjust your position — {pct}% match. Aim for 50%."
+        primary_cue = "Step forward and lower your back knee toward the floor."
 
     GREEN = (0, 220, 80)
     RED   = (0, 60, 255)
-    color = GREEN if passed else RED
+    color = GREEN if (is_down and passed) else RED
+
+    hip   = (l_hip + r_hip) / 2
+    knee  = (l_knee + r_knee) / 2
+    ankle = (l_ankle + r_ankle) / 2
 
     joint_points = [
-        (shoulder[0], shoulder[1], color, "Shoulder"),
-        (hip[0],      hip[1],      color, "Hip"),
-        (knee[0],     knee[1],     color, "Knee"),
-        (ankle[0],    ankle[1],    color, "Ankle"),
+        (hip[0],   hip[1],   color, "Hip"),
+        (knee[0],  knee[1],  color, "Knee"),
+        (ankle[0], ankle[1], color, "Ankle"),
     ]
 
     checks = {
         "similarity": (passed, float(pct), f"Match: {pct}% — aim for 50%+"),
+        "knee_angle": (is_down, float(min_knee_angle), f"Knee: {int(min_knee_angle)}°"),
     }
 
     return {
-        "passed":        passed,
+        "passed":        is_down and passed,
         "checks":        checks,
         "primary_cue":   primary_cue,
         "joint_points":  joint_points,
         "state":         state,
         "rep_complete":  rep_complete,
-        "hold_time":     state["hold_time"],
-        "hold_target":   state["hold_target"],
-        "is_time_based": True,
+        "rep_count":     state["rep_count"],
+        "is_time_based": False,
     }
 
 

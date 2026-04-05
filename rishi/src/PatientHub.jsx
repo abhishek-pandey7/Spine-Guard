@@ -15,8 +15,8 @@ export default function PatientHub({ profile, onNavigate, onLogout, onOpenSettin
             <button className="logout-mini-btn" onClick={onLogout}>Logout</button>
           </div>
         </div>
-        <div className="setup-logo">🦴</div>
-        <h1 className="setup-title">SpineIQ</h1>
+        <div className="setup-logo"><img src="/logo.jpeg" alt="SpineGuard" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover' }} /></div>
+        <h1 className="setup-title">SpineGuard</h1>
         <p className="setup-subtitle">Welcome back, <strong>{profile.full_name}</strong>. Choose your experience.</p>
         <div style={{ display: "flex", gap: 16, marginTop: 28, flexWrap: "wrap", justifyContent: "center" }}>
           <button onClick={() => onNavigate("chatbot")} className="mode-card mode-card-purple">

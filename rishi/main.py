@@ -228,10 +228,10 @@ async def chat_with_file(
 
 
 # --- Physio Session Endpoint ---
-class ExerciseResult(BaseModel):
+class ExerciseEntry(BaseModel):
     name: str
-    reps_done: int
-    target_reps: int
+    reps_done: int = 0
+    duration_seconds: int = 0
 
 class SessionRequest(BaseModel):
     user_id: str
@@ -239,8 +239,15 @@ class SessionRequest(BaseModel):
     phase: int
     pain_before: int
     pain_after: int
-    exercises: list[ExerciseResult]
+    difficulty: str = "moderate"
     notes: str = ""
+    red_flags: dict = {}
+    exercises: List[ExerciseEntry] = []
+    total_reps: int = 0
+    total_time_seconds: int = 0
+    compliance_score: int = 0
+    grade: str = ""
+    session_date: str = ""
 
 @app.post("/session")
 async def save_session(req: SessionRequest):
@@ -251,8 +258,15 @@ async def save_session(req: SessionRequest):
         "phase": req.phase,
         "pain_before": req.pain_before,
         "pain_after": req.pain_after,
-        "exercises": [{"name": e.name, "reps_done": e.reps_done, "target_reps": e.target_reps} for e in req.exercises],
+        "difficulty": req.difficulty,
         "notes": req.notes,
+        "red_flags": req.red_flags,
+        "exercises": [e.dict() for e in req.exercises],
+        "total_reps": req.total_reps,
+        "total_time_seconds": req.total_time_seconds,
+        "compliance_score": req.compliance_score,
+        "grade": req.grade,
+        "session_date": req.session_date or None,
     }
     res = supabase.table("physio_sessions").insert(data).execute()
     return {"success": True, "id": res.data[0]["id"] if res.data else None}

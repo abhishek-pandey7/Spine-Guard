@@ -8,8 +8,8 @@ interface PhaseSelectorProps {
   onSelect: (phase: 1 | 2 | 3, exercise: Exercise) => void;
 }
 
-const PHASE_COLORS = ['#22c55e', '#3b82f6', '#a855f7'];
-const PHASE_BG = ['#052e16', '#1e3a5f', '#3b0764'];
+const PHASE_COLORS = ['#1e7d8c', '#2a9aad', '#b2967d'];
+const PHASE_BG = ['rgba(30,125,140,0.08)', 'rgba(42,154,173,0.08)', 'rgba(178,150,125,0.08)'];
 
 export default function PhaseSelector({ defaultPhase, phases, onSelect }: PhaseSelectorProps) {
   const [activePhase, setActivePhase] = useState<number>(defaultPhase - 1);

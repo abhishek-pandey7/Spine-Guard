@@ -18,7 +18,7 @@ class SpineState(TypedDict):
     retrieved_context: Optional[str]
 
 # --- LLM ---
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", max_output_tokens=1024)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", max_output_tokens=4096)
 
 # --- Nodes ---
 
