@@ -2,7 +2,7 @@
 //  gemini.js — MRI Analysis with Visual Grounding
 // ══════════════════════════════════════════════════════════
 
-const DEFAULT_API_KEY = 'AIzaSyCw47DTNDYSK-A7fQhSLJumhMTxJtj0BKg'; // Hardcoded for production
+const DEFAULT_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
 
 // RECOMMENDATION: Use 'gemini-1.5-pro' for better medical OCR if available
 const GEMINI_MODEL = 'gemini-2.5-flash';

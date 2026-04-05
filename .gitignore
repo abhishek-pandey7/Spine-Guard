@@ -79,3 +79,9 @@ reference_videos/
 .gemini/
 .agents/
 backup/
+
+# ── Built SpineViz assets (contain hardcoded API key) ─────────────────────────
+rishi/public/spineviz/assets/
+
+# ── yash src env ──────────────────────────────────────────────────────────────
+yash/src/.env
