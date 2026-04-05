@@ -2,130 +2,252 @@
 Thoracic Extension — Exercise Contract
 ───────────────────────────────────────
 Camera position : Side-on (patient's left or right side faces camera)
-Starting position: Sitting or standing, hands behind head
+Mode            : Similarity-based — compares user pose to a reference video
 
-Movement: Patient extends upper back backward over a support point,
-          opening the chest while keeping lower back stable
-
-What we check
+How it works
 ─────────────
-1. Upper back extension : thoracic spine curves backward
-2. Lower back stability : lumbar spine stays neutral (not arching)
-3. Chest opening        : shoulders move backward
-4. Controlled motion    : no jerking or bouncing
+1. On first call, loads a reference video (thoracic_extension_reference.mp4 next to this file)
+2. Samples 20 frames evenly and stores all angle sets (no averaging)
+3. Each live frame, finds the BEST matching reference frame
+4. Similarity >= 50% -> hold time accumulates
+5. Similarity ≥ 50% → hold time accumulates
+6. Hold time reaches target → rep complete
 
-States tracked
-──────────────
-NEUTRAL → upright position
-EXTEND  → upper back extended
-Rep counted each NEUTRAL→EXTEND→NEUTRAL cycle
-
-Feedback cues
-─────────────
-PASS   : "Good. Open your chest and breathe."
-LOWER  : "Keep your lower back still — only move your upper back."
-RANGE  : "Extend a bit more — open your chest."
-FAST   : "Move slowly and with control."
+Key angles checked (side-on thoracic extension)
+─────────────────────────────────────────────────
+- Shoulder ↔ Hip angle      (thoracic extension)
+- Lumbar stability
+- Chest opening margin
 """
 
 import numpy as np
 import mediapipe as mp
+import os
+import cv2
 
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
-THORACIC_EXT_MIN = 4     # degrees — upper back extension (was 8)
-LUMBAR_STABLE_TOL= 15    # degrees — lower back should stay neutral (was 8)
-CHEST_OPEN_TOL   = 0.02  # normalised — shoulder backward movement (was 0.04)
+SIMILARITY_THRESHOLD = 0.80
+HOLD_TARGET_DEFAULT  = 30.0
+SAMPLE_FRAMES        = 20
 
-EXTEND_THRESH    = 2     # degrees to count as extending (was 5)
+# Stores all sampled reference frames (not averaged)
+_reference_frames = None
+_ref_pose         = None
 
 
-def _angle(a, b, c):
-    a, b, c = np.array(a), np.array(b), np.array(c)
-    ba, bc = a - b, c - b
-    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
-    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+def _get_ref_pose():
+    global _ref_pose
+    if _ref_pose is None:
+        _ref_pose = mp_pose.Pose(
+            static_image_mode=True,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+        )
+    return _ref_pose
 
 
 def _pt(landmarks, lm_enum):
     lm = landmarks[lm_enum.value]
-    return [lm.x, lm.y]
+    return np.array([lm.x, lm.y])
 
 
-def _horizontal_angle(p1, p2):
-    dx = p2[0] - p1[0]
-    dy = p2[1] - p1[1]
-    return float(abs(np.degrees(np.arctan2(dy, dx))))
+def _angle(a, b, c):
+    ba  = a - b
+    bc  = c - b
+    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
 
 
-def evaluate(landmarks, state=None):
-    if state is None:
-        state = {"phase": "NEUTRAL", "rep_count": 0}
-
+def _extract_angles(landmarks):
     l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
     r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
     l_hip      = _pt(landmarks, LM.LEFT_HIP)
     r_hip      = _pt(landmarks, LM.RIGHT_HIP)
 
-    shoulder = [(l_shoulder[0]+r_shoulder[0])/2, (l_shoulder[1]+r_shoulder[1])/2]
-    hip      = [(l_hip[0]+r_hip[0])/2,           (l_hip[1]+r_hip[1])/2]
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip      = (l_hip + r_hip) / 2
 
-    # Thoracic extension: shoulder-hip angle from vertical
-    ext_angle = _horizontal_angle(shoulder, hip)
-    ext_ok = ext_angle >= THORACIC_EXT_MIN
-
-    # Lumbar stability (simplified — would need more landmarks for precise measurement)
-    lumbar_ok = True
-
-    # Chest opening
-    chest_ok = ext_angle >= THORACIC_EXT_MIN
-
-    # ── Rep state machine ─────────────────────────────────────────────────
-    is_extending = ext_angle > EXTEND_THRESH
-    rep_complete = False
-
-    if state["phase"] == "NEUTRAL" and is_extending:
-        state["phase"] = "EXTEND"
-    elif state["phase"] == "EXTEND" and not is_extending:
-        state["phase"] = "NEUTRAL"
-        state["rep_count"] += 1
-        rep_complete = True
-
-    GREEN  = (0, 220, 80)
-    YELLOW = (0, 200, 255)
-    RED    = (0, 60, 255)
-
-    checks = {
-        "thoracic_ext": (ext_ok,   ext_angle, "Extend your upper back — open your chest."),
-        "lumbar_stable":(lumbar_ok, ext_angle, "Keep your lower back still — only move your upper back."),
-        "chest_open":   (chest_ok, ext_angle, "Open your chest wider."),
-    }
-
-    all_passed = all(v[0] for v in checks.values())
-    primary_cue = "Good. Open your chest and breathe." if all_passed else next(
-        v[2] for v in checks.values() if not v[0]
-    )
-
-    joint_points = [
-        (shoulder[0], shoulder[1], GREEN if ext_ok else RED, "Shoulder"),
-        (hip[0],      hip[1],      GREEN if lumbar_ok else RED, "Hip"),
-    ]
+    dx = shoulder[0] - hip[0]
+    dy = shoulder[1] - hip[1]
+    ext_angle = float(abs(np.degrees(np.arctan2(dy, dx))))
 
     return {
-        "passed":       all_passed,
-        "checks":       checks,
-        "primary_cue":  primary_cue,
-        "joint_points": joint_points,
-        "state":        state,
-        "rep_complete": rep_complete,
+        "thoracic_ext": ext_angle,
+        "lumbar_stable": ext_angle,
+        "chest_open":    ext_angle,
+    }
+
+
+def _load_reference():
+    global _reference_frames
+    if _reference_frames is not None:
+        return _reference_frames
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for fname in ["thoracic_extension_reference.mp4", "thoracic_extension_ref.mp4",
+                  "thoracic_extension_reference.avi", "thoracic_extension_ref.avi"]:
+        path = os.path.join(here, fname)
+        if not os.path.isfile(path):
+            continue
+
+        cap   = cv2.VideoCapture(path)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total < 1:
+            cap.release()
+            continue
+
+        indices    = np.linspace(0, total - 1, min(SAMPLE_FRAMES, total), dtype=int)
+        pose       = _get_ref_pose()
+        all_frames = []
+
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = pose.process(rgb)
+            if result.pose_landmarks:
+                all_frames.append(_extract_angles(result.pose_landmarks.landmark))
+        cap.release()
+
+        if not all_frames:
+            print(f"[Thoracic Extension] No pose detected in any frame of {fname}")
+            continue
+
+        _reference_frames = all_frames
+        print(f"[Thoracic Extension] Reference loaded from {fname} "
+              f"({len(all_frames)}/{len(indices)} frames valid)")
+        return _reference_frames
+
+    print("[Thoracic Extension] WARNING: No reference video found. "
+          "Place thoracic_extension_reference.mp4 next to thoracic_extension.py")
+    return None
+
+
+def _compute_similarity(user_angles, ref_frames):
+    """Find the best matching reference frame and return its score."""
+    MAX_DIFF   = 30.0
+    best_score = 0.0
+    for ref_angles in ref_frames:
+        scores = []
+        for key in ref_angles:
+            if key not in user_angles:
+                continue
+            diff  = abs(user_angles[key] - ref_angles[key])
+            score = max(0.0, 1.0 - diff / MAX_DIFF)
+            scores.append(score)
+        frame_score = float(np.mean(scores)) if scores else 0.0
+        best_score  = max(best_score, frame_score)
+    return best_score
+
+
+def evaluate(landmarks, state=None):
+    if state is None:
+        state = {
+            "phase":        "REST",
+            "hold_time":    0.0,
+            "hold_target":  HOLD_TARGET_DEFAULT,
+            "rep_count":    0,
+            "_last_ts":     None,
+            "_exit_frames": 0,
+        }
+
+    import time
+    now = time.time()
+    dt  = min(now - state["_last_ts"], 0.1) if state["_last_ts"] else 0.0
+    state["_last_ts"] = now
+
+    ref_frames  = _load_reference()
+    user_angles = _extract_angles(landmarks)
+
+    similarity = _compute_similarity(user_angles, ref_frames) if ref_frames else 0.0
+    passed     = similarity >= SIMILARITY_THRESHOLD
+
+    shoulder_vis        = landmarks[LM.LEFT_SHOULDER.value].visibility
+    hip_vis             = landmarks[LM.LEFT_HIP.value].visibility
+    landmarks_confident = shoulder_vis > 0.4 and hip_vis > 0.4
+
+    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
+    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+    shoulder   = (l_shoulder + r_shoulder) / 2
+    hip        = _pt(landmarks, LM.LEFT_HIP)
+
+    is_extending  = abs(shoulder[0] - hip[0]) > 0.03 and landmarks_confident
+    entering_hold = is_extending or (passed and landmarks_confident)
+
+    rep_complete = False
+
+    if state["phase"] == "REST":
+        if landmarks_confident and entering_hold:
+            state["phase"]        = "HOLD"
+            state["_exit_frames"] = 0
+
+    elif state["phase"] == "HOLD":
+        if not landmarks_confident:
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 15:
+                state["phase"]        = "REST"
+                state["_exit_frames"] = 0
+                rep_complete          = True
+        else:
+            state["_exit_frames"] = 0
+            if not is_extending and not passed:
+                state["phase"]      = "REST"
+                state["rep_count"] += 1
+                rep_complete        = True
+            elif passed:
+                state["hold_time"] += dt
+
+    if state["hold_time"] >= state["hold_target"]:
+        rep_complete       = True
+        state["hold_time"] = 0.0
+        state["phase"]     = "REST"
+
+    pct = int(similarity * 100)
+    if not ref_frames:
+        primary_cue = "No reference video found — add thoracic_extension_reference.mp4"
+    elif not landmarks_confident:
+        primary_cue = "Move closer so I can see your pose."
+    elif passed:
+        primary_cue = "Good. Open your chest and breathe."
+    elif not is_extending:
+        primary_cue = "Extend your upper back — open your chest."
+    else:
+        primary_cue = f"Adjust your position — {pct}% match. Aim for 50%."
+
+    GREEN = (0, 220, 80)
+    RED   = (0, 60, 255)
+    color = GREEN if passed else RED
+
+    joint_points = [
+        (shoulder[0], shoulder[1], color, "Shoulder"),
+        (hip[0],      hip[1],      color, "Hip"),
+    ]
+
+    checks = {
+        "similarity": (passed, float(pct), f"Match: {pct}% — aim for 50%+"),
+    }
+
+    return {
+        "passed":        passed,
+        "checks":        checks,
+        "primary_cue":   primary_cue,
+        "joint_points":  joint_points,
+        "state":         state,
+        "rep_complete":  rep_complete,
+        "hold_time":     state["hold_time"],
+        "hold_target":   state["hold_target"],
+        "is_time_based": True,
     }
 
 
 META = {
     "name":        "Thoracic Extension",
-    "camera_hint": "Sitting or standing, side-on to camera.",
+    "camera_hint":  "Sitting or standing, side-on to camera.",
+    "instruction":  "Good. Open your chest, extend gently, and breathe deeply.",
     "phases":      ["Postural Pain Ph1"],
-    "rep_trigger": "thoracic_ext",
+    "rep_trigger": "hold_duration",
 }

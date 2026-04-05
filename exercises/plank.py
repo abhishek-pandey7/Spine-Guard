@@ -1,153 +1,258 @@
 """
 Plank — Exercise Contract
 ──────────────────────────
-Camera position : Side-on (patient's left or right side faces camera)
-Starting position: Forearms and toes on ground, body in straight line
+Camera position : Side-on (left side faces camera, frame is flipped before MediaPipe)
+Mode            : Similarity-based — compares user pose to a reference video
 
-What we check
+How it works
 ─────────────
-1. Spine alignment     : shoulder–hip–ankle form a straight line (± 10°)
-2. Hip height          : hips not sagging below or piking above shoulder level
-3. Elbow position      : elbows under shoulders (not drifting forward/back)
-4. Head neutral        : head in line with spine (not drooping or craning)
+1. On first call, loads a reference video (plank_reference.mp4 next to this file)
+2. Samples frames evenly across the video and extracts joint angles from each
+3. Averages the angles across all valid frames → robust reference pose
+4. Each live frame, computes same angles from user and compares
+5. Similarity ≥ 70% → hold time accumulates
+6. Hold time reaches target → rep complete
 
-States tracked
-──────────────
-REST   → not in plank position
-HOLD   → holding plank
-Duration tracked instead of reps
-
-Feedback cues
-─────────────
-PASS   : "Good. Hold steady and breathe."
-SAG    : "Don't let your hips drop — engage your core."
-PIKE   : "Lower your hips — keep a straight line."
-ELBOW  : "Keep your elbows under your shoulders."
-HEAD   : "Keep your head in line with your spine."
+Key angles checked (side-on plank)
+────────────────────────────────────
+- Shoulder → Hip → Ankle   (body alignment)
+- Hip → Knee → Ankle       (leg straightness)
+- Elbow → Shoulder → Hip   (shoulder/torso angle)
+- Shoulder → Elbow → Wrist (arm/elbow position)
+- Nose → Shoulder → Hip    (head alignment)
 """
 
 import numpy as np
 import mediapipe as mp
+import os
+import cv2
 
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
-ALIGNMENT_TOL    = 20    # degrees — shoulder-hip-ankle deviation from straight (was 12)
-HIP_SAG_TOL      = 0.10  # normalised y — hip below shoulder line (was 0.06)
-HIP_PIKE_TOL     = 0.10  # normalised y — hip above shoulder line (was 0.06)
-ELBOW_DRIFT      = 0.12  # normalised x — elbow under shoulder (was 0.08)
-HEAD_NEUTRAL_TOL = 0.08  # normalised y — head in line with spine (was 0.05)
+SIMILARITY_THRESHOLD = 0.50
+HOLD_TARGET_DEFAULT  = 30.0
+SAMPLE_FRAMES        = 20     # number of frames to sample from reference video
 
-HOLD_THRESH      = 0.02  # minimum elevation to detect plank position (was 0.04)
+# Cached reference angles
+_reference_angles = None
+_ref_pose         = None
 
 
-def _angle(a, b, c):
-    a, b, c = np.array(a), np.array(b), np.array(c)
-    ba, bc = a - b, c - b
-    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
-    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+def _get_ref_pose():
+    global _ref_pose
+    if _ref_pose is None:
+        _ref_pose = mp_pose.Pose(
+            static_image_mode=True,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+        )
+    return _ref_pose
 
 
 def _pt(landmarks, lm_enum):
     lm = landmarks[lm_enum.value]
-    return [lm.x, lm.y]
+    return np.array([lm.x, lm.y])
 
 
-def _horizontal_angle(p1, p2):
-    dx = p2[0] - p1[0]
-    dy = p2[1] - p1[1]
-    return float(abs(np.degrees(np.arctan2(dy, dx))))
+def _angle(a, b, c):
+    ba  = a - b
+    bc  = c - b
+    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+
+
+def _extract_angles(landmarks):
+    shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+    hip      = _pt(landmarks, LM.RIGHT_HIP)
+    knee     = _pt(landmarks, LM.RIGHT_KNEE)
+    ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
+    elbow    = _pt(landmarks, LM.RIGHT_ELBOW)
+    wrist    = _pt(landmarks, LM.RIGHT_WRIST)
+    nose     = _pt(landmarks, LM.NOSE)
+
+    return {
+        "body_line":    _angle(shoulder, hip, ankle),
+        "leg_straight": _angle(hip, knee, ankle),
+        "torso_arm":    _angle(elbow, shoulder, hip),
+        "arm_angle":    _angle(shoulder, elbow, wrist),
+        "head_body":    _angle(nose, shoulder, hip),
+    }
+
+
+def _load_reference():
+    """
+    Sample SAMPLE_FRAMES evenly from the reference video,
+    extract angles from each valid frame, and return the mean.
+    """
+    global _reference_angles
+
+    if _reference_angles is not None:
+        return _reference_angles
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for fname in ["plank_reference.mp4", "plank_ref.mp4",
+                  "plank_reference.avi", "plank_ref.avi"]:
+        path = os.path.join(here, fname)
+        if not os.path.isfile(path):
+            continue
+
+        cap        = cv2.VideoCapture(path)
+        total      = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total < 1:
+            cap.release()
+            continue
+
+        # Pick evenly spaced frame indices
+        indices    = np.linspace(0, total - 1, min(SAMPLE_FRAMES, total), dtype=int)
+        pose       = _get_ref_pose()
+        all_angles = []
+
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            frame  = cv2.flip(frame, 1)
+            rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = pose.process(rgb)
+            if result.pose_landmarks:
+                all_angles.append(_extract_angles(result.pose_landmarks.landmark))
+        cap.release()
+
+        if not all_angles:
+            print(f"[Plank] No pose detected in any frame of {fname}")
+            continue
+
+        # Average each angle across all valid frames
+        averaged = {}
+        for key in all_angles[0]:
+            averaged[key] = float(np.mean([a[key] for a in all_angles]))
+
+        _reference_angles = averaged
+        print(f"[Plank] Reference loaded from {fname} "
+              f"({len(all_angles)}/{len(indices)} frames valid): {averaged}")
+        return _reference_angles
+
+    print("[Plank] WARNING: No reference video found. "
+          "Place plank_reference.mp4 next to plank.py")
+    return None
+
+
+def _compute_similarity(user_angles, ref_angles):
+    MAX_DIFF = 30.0
+    scores   = []
+    for key in ref_angles:
+        if key not in user_angles:
+            continue
+        diff  = abs(user_angles[key] - ref_angles[key])
+        score = max(0.0, 1.0 - diff / MAX_DIFF)
+        scores.append(score)
+    return float(np.mean(scores)) if scores else 0.0
 
 
 def evaluate(landmarks, state=None):
     if state is None:
-        state = {"phase": "REST", "hold_time": 0.0, "rep_count": 0}
+        state = {
+            "phase":        "REST",
+            "hold_time":    0.0,
+            "hold_target":  HOLD_TARGET_DEFAULT,
+            "rep_count":    0,
+            "_last_ts":     None,
+            "_exit_frames": 0,
+        }
 
-    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
-    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
-    l_hip      = _pt(landmarks, LM.LEFT_HIP)
-    r_hip      = _pt(landmarks, LM.RIGHT_HIP)
-    l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
-    r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
-    l_elbow    = _pt(landmarks, LM.LEFT_ELBOW)
-    r_elbow    = _pt(landmarks, LM.RIGHT_ELBOW)
-    nose       = _pt(landmarks, LM.NOSE)
+    import time
+    now = time.time()
+    dt  = min(now - state["_last_ts"], 0.1) if state["_last_ts"] else 0.0
+    state["_last_ts"] = now
 
-    shoulder = [(l_shoulder[0]+r_shoulder[0])/2, (l_shoulder[1]+r_shoulder[1])/2]
-    hip      = [(l_hip[0]+r_hip[0])/2,           (l_hip[1]+r_hip[1])/2]
-    ankle    = [(l_ankle[0]+r_ankle[0])/2,         (l_ankle[1]+r_ankle[1])/2]
-    elbow    = [(l_elbow[0]+r_elbow[0])/2,         (l_elbow[1]+r_elbow[1])/2]
+    # ── Reference ─────────────────────────────────────────────────────────────
+    ref_angles  = _load_reference()
+    user_angles = _extract_angles(landmarks)
 
-    # Alignment: shoulder-hip-ankle angle (should be ~180° for straight line)
-    alignment_angle = _angle(shoulder, hip, ankle)
-    alignment_ok = alignment_angle >= (180 - ALIGNMENT_TOL)
+    similarity  = _compute_similarity(user_angles, ref_angles) if ref_angles else 0.0
+    passed      = similarity >= SIMILARITY_THRESHOLD
 
-    # Hip sag: hip should not drop below shoulder line
-    hip_sag = shoulder[1] - hip[1]
-    sag_ok = hip_sag <= HIP_SAG_TOL
+    # ── Visibility gate ───────────────────────────────────────────────────────
+    shoulder_vis        = landmarks[LM.RIGHT_SHOULDER.value].visibility
+    hip_vis             = landmarks[LM.RIGHT_HIP.value].visibility
+    ankle_vis           = landmarks[LM.RIGHT_ANKLE.value].visibility
+    landmarks_confident = shoulder_vis > 0.4 and hip_vis > 0.4 and ankle_vis > 0.4
 
-    # Hip pike: hip should not rise above shoulder line
-    hip_pike = hip[1] - shoulder[1]
-    pike_ok = hip_pike <= HIP_PIKE_TOL
+    # ── Plank detection ───────────────────────────────────────────────────────
+    shoulder_pt = _pt(landmarks, LM.RIGHT_SHOULDER)
+    ankle_pt    = _pt(landmarks, LM.RIGHT_ANKLE)
+    is_plank = abs(shoulder_pt[0] - ankle_pt[0]) > 0.15 and landmarks_confident
 
-    # Elbow under shoulder
-    elbow_drift = abs(elbow[0] - shoulder[0])
-    elbow_ok = elbow_drift <= ELBOW_DRIFT
-
-    # Head neutral
-    head_drift = abs(nose[1] - shoulder[1])
-    head_ok = head_drift <= HEAD_NEUTRAL_TOL
-
-    # ── State machine ─────────────────────────────────────────────────────
-    is_plank = (shoulder[1] - ankle[1]) > HOLD_THRESH
+    # ── State machine ─────────────────────────────────────────────────────────
     rep_complete = False
 
     if state["phase"] == "REST" and is_plank:
-        state["phase"] = "HOLD"
-    elif state["phase"] == "HOLD" and not is_plank:
-        state["phase"] = "REST"
-        state["rep_count"] += 1
-        rep_complete = True
+        state["phase"]        = "HOLD"
+        state["_exit_frames"] = 0
 
-    GREEN  = (0, 220, 80)
-    YELLOW = (0, 200, 255)
-    RED    = (0, 60, 255)
+    elif state["phase"] == "HOLD":
+        if not is_plank or not landmarks_confident:
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 15:
+                state["phase"]        = "REST"
+                state["_exit_frames"] = 0
+                rep_complete          = True
+        else:
+            state["_exit_frames"] = 0
+            if passed:                    # timer only accumulates when similarity ≥ threshold
+                state["hold_time"] += dt
 
-    checks = {
-        "alignment":  (alignment_ok, alignment_angle, "Keep a straight line from shoulders to ankles."),
-        "no_sag":     (sag_ok,       hip_sag,         "Don't let your hips drop — engage your core."),
-        "no_pike":    (pike_ok,      hip_pike,        "Lower your hips — keep a straight line."),
-        "elbow_pos":  (elbow_ok,     elbow_drift,     "Keep your elbows under your shoulders."),
-        "head_neutral":(head_ok,     head_drift,      "Keep your head in line with your spine."),
-    }
+    if state["hold_time"] >= state["hold_target"]:
+        rep_complete       = True
+        state["hold_time"] = 0.0
+        state["phase"]     = "REST"
 
-    all_passed = all(v[0] for v in checks.values())
-    primary_cue = "Good. Hold steady and breathe." if all_passed else next(
-        v[2] for v in checks.values() if not v[0]
-    )
+    # ── Feedback cue ──────────────────────────────────────────────────────────
+    pct = int(similarity * 100)
+    if not ref_angles:
+        primary_cue = "No reference video found — add plank_reference.mp4"
+    elif not is_plank:
+        primary_cue = "Get into plank position."
+    elif passed:
+        primary_cue = "Good. Hold steady and breathe."
+    else:
+        primary_cue = f"Adjust your position — {pct}% match. Aim for 70%."
+
+    # ── Joint overlay ─────────────────────────────────────────────────────────
+    GREEN = (0, 220, 80)
+    RED   = (0, 60, 255)
+    color = GREEN if passed else RED
 
     joint_points = [
-        (shoulder[0], shoulder[1], GREEN, "Shoulder"),
-        (hip[0],      hip[1],      GREEN if (sag_ok and pike_ok) else RED, "Hip"),
-        (ankle[0],    ankle[1],    GREEN if alignment_ok else RED, "Ankle"),
-        (elbow[0],    elbow[1],    GREEN if elbow_ok else RED, "Elbow"),
-        (nose[0],     nose[1],     GREEN if head_ok else RED, "Head"),
+        (landmarks[LM.RIGHT_SHOULDER.value].x, landmarks[LM.RIGHT_SHOULDER.value].y, color, "Shoulder"),
+        (landmarks[LM.RIGHT_HIP.value].x,      landmarks[LM.RIGHT_HIP.value].y,      color, "Hip"),
+        (landmarks[LM.RIGHT_ANKLE.value].x,    landmarks[LM.RIGHT_ANKLE.value].y,    color, "Ankle"),
+        (landmarks[LM.RIGHT_ELBOW.value].x,    landmarks[LM.RIGHT_ELBOW.value].y,    color, "Elbow"),
+        (landmarks[LM.NOSE.value].x,           landmarks[LM.NOSE.value].y,           color, "Head"),
     ]
 
+    checks = {
+        "similarity": (passed, float(pct), f"Match: {pct}% — aim for 50%+"),
+    }
+
     return {
-        "passed":       all_passed,
-        "checks":       checks,
-        "primary_cue":  primary_cue,
-        "joint_points": joint_points,
-        "state":        state,
-        "rep_complete": rep_complete,
+        "passed":        passed,
+        "checks":        checks,
+        "primary_cue":   primary_cue,
+        "joint_points":  joint_points,
+        "state":         state,
+        "rep_complete":  rep_complete,
+        "hold_time":     state["hold_time"],
+        "hold_target":   state["hold_target"],
+        "is_time_based": True,
     }
 
 
 META = {
     "name":        "Plank",
-    "camera_hint": "Side-on to camera. Forearms on ground.",
+    "camera_hint": "Left side facing camera. Forearms on ground.",
     "phases":      ["Muscle Strain Ph3", "Sciatica Ph3", "Herniated Disc Ph3",
                     "Postural Pain Ph3", "Chronic LBP Ph3", "Facet Joint Ph3",
                     "Spinal Stenosis Ph3"],

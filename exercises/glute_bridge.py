@@ -2,81 +2,178 @@
 Glute Bridge — Exercise Contract
 ─────────────────────────────────
 Camera position : Side-on (patient's left or right side faces camera)
-Starting position: Lying on back, knees bent ~90°, feet flat on floor
+Mode            : Similarity-based — compares user pose to a reference video
 
-Movement: Patient drives hips up until shoulder–hip–knee forms a straight line
-
-What we check
+How it works
 ─────────────
-1. Knee angle     : 80–100°  (knees stay bent throughout)
-2. Hip angle      : at top of bridge, hip–knee–shoulder should be ~160–180°
-                    (hips fully extended, forming a straight plank)
-3. Spine neutral  : shoulder–hip–knee alignment stays straight (no sagging/arching)
-4. Symmetry       : left hip height ≈ right hip height (no lateral drop)
+1. On first call, loads a reference video (glute_bridge_reference.mp4 next to this file)
+2. Samples 20 frames evenly and stores all angle sets (no averaging)
+3. Each live frame, finds the BEST matching reference frame
+4. Similarity >= 50% -> hold time accumulates
+5. Similarity ≥ 50% → hold time accumulates
+6. Hold time reaches target → rep complete
 
-States tracked
-──────────────
-DOWN  → hips on floor   (hip angle < 130°)
-UP    → bridge held      (hip angle > 155°)
-Rep counted each DOWN→UP→DOWN cycle
-
-Feedback cues
-─────────────
-PASS  : "Good bridge. Squeeze your glutes."
-KNEE  : "Keep your knees at 90 degrees."
-HIP   : "Drive your hips higher."
-SAG   : "Don't let your hips sag — keep the line straight."
-SYM   : "Level your hips — don't let one side drop."
+Key angles checked (side-on glute bridge)
+──────────────────────────────────────────
+- Knee angle     (knees stay bent throughout)
+- Hip angle      (hips fully extended at top)
+- Spine neutral  (shoulder–hip–knee alignment)
+- Symmetry       (left hip height ≈ right hip height)
 """
 
 import numpy as np
 import mediapipe as mp
+import os
+import cv2
 
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
-KNEE_ANGLE_MIN   = 55     # degrees (was 70)
-KNEE_ANGLE_MAX   = 130    # (was 115)
-HIP_ANGLE_UP_MIN = 140    # shoulder–hip–knee at top of bridge (was 155)
-HIP_ANGLE_SAG    = 130    # below this while "up" = sagging (was 145)
-HIP_SYMMETRY_TOL = 0.07   # normalised y — left vs right hip height (was 0.04)
-STATE_DOWN_THRESH = 125   # relaxed: hip angle below = hips on floor (was 135)
-STATE_UP_THRESH   = 135   # relaxed: hip angle above = bridge achieved (was 148)
+SIMILARITY_THRESHOLD = 0.85
+HOLD_TARGET_DEFAULT  = 30.0
+SAMPLE_FRAMES        = 20
+
+# Stores all sampled reference frames (not averaged)
+_reference_frames = None
+_ref_pose         = None
 
 
-def _angle(a, b, c):
-    a, b, c = np.array(a), np.array(b), np.array(c)
-    ba = a - b
-    bc = c - b
-    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
-    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+def _get_ref_pose():
+    global _ref_pose
+    if _ref_pose is None:
+        _ref_pose = mp_pose.Pose(
+            static_image_mode=True,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+        )
+    return _ref_pose
 
 
 def _pt(landmarks, lm_enum):
     lm = landmarks[lm_enum.value]
-    return [lm.x, lm.y]
+    return np.array([lm.x, lm.y])
+
+
+def _angle(a, b, c):
+    ba  = a - b
+    bc  = c - b
+    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+
+
+def _extract_angles(landmarks):
+    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
+    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+    l_hip      = _pt(landmarks, LM.LEFT_HIP)
+    r_hip      = _pt(landmarks, LM.RIGHT_HIP)
+    l_knee     = _pt(landmarks, LM.LEFT_KNEE)
+    r_knee     = _pt(landmarks, LM.RIGHT_KNEE)
+    l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
+    r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
+
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip      = (l_hip + r_hip) / 2
+    knee     = (l_knee + r_knee) / 2
+    ankle    = (l_ankle + r_ankle) / 2
+
+    knee_angle = _angle(hip, knee, ankle)
+    hip_angle  = _angle(shoulder, hip, knee)
+    hip_sym    = abs(l_hip[1] - r_hip[1])
+
+    return {
+        "knee_angle": knee_angle,
+        "hip_angle":  hip_angle,
+        "symmetry":   hip_sym,
+    }
+
+
+def _load_reference():
+    global _reference_frames
+    if _reference_frames is not None:
+        return _reference_frames
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for fname in ["glute_bridge_reference.mp4", "glute_bridge_ref.mp4",
+                  "glute_bridge_reference.avi", "glute_bridge_ref.avi"]:
+        path = os.path.join(here, fname)
+        if not os.path.isfile(path):
+            continue
+
+        cap   = cv2.VideoCapture(path)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total < 1:
+            cap.release()
+            continue
+
+        indices    = np.linspace(0, total - 1, min(SAMPLE_FRAMES, total), dtype=int)
+        pose       = _get_ref_pose()
+        all_frames = []
+
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = pose.process(rgb)
+            if result.pose_landmarks:
+                all_frames.append(_extract_angles(result.pose_landmarks.landmark))
+        cap.release()
+
+        if not all_frames:
+            print(f"[Glute Bridge] No pose detected in any frame of {fname}")
+            continue
+
+        _reference_frames = all_frames
+        print(f"[Glute Bridge] Reference loaded from {fname} "
+              f"({len(all_frames)}/{len(indices)} frames valid)")
+        return _reference_frames
+
+    print("[Glute Bridge] WARNING: No reference video found. "
+          "Place glute_bridge_reference.mp4 next to glute_bridge.py")
+    return None
+
+
+def _compute_similarity(user_angles, ref_frames):
+    """Find the best matching reference frame and return its score."""
+    MAX_DIFF   = 30.0
+    best_score = 0.0
+
+    for ref_angles in ref_frames:
+        scores = []
+        for key in ref_angles:
+            if key not in user_angles:
+                continue
+            diff  = abs(user_angles[key] - ref_angles[key])
+            score = max(0.0, 1.0 - diff / MAX_DIFF)
+            scores.append(score)
+        frame_score = float(np.mean(scores)) if scores else 0.0
+        best_score  = max(best_score, frame_score)
+
+    return best_score
 
 
 def evaluate(landmarks, state=None):
-    """
-    Parameters
-    ----------
-    landmarks : mediapipe landmark list
-    state     : dict (mutable, carry between frames) — tracks rep state
-
-    Returns
-    -------
-    result : dict
-        passed       : bool
-        checks       : dict
-        primary_cue  : str
-        joint_points : list
-        state        : updated state dict
-        rep_complete : bool — True on the frame a rep is counted
-    """
     if state is None:
-        state = {"phase": "DOWN", "rep_count": 0}
+        state = {
+            "phase":        "REST",
+            "hold_time":    0.0,
+            "hold_target":  HOLD_TARGET_DEFAULT,
+            "rep_count":    0,
+            "_last_ts":     None,
+            "_exit_frames": 0,
+        }
+
+    import time
+    now = time.time()
+    dt  = min(now - state["_last_ts"], 0.1) if state["_last_ts"] else 0.0
+    state["_last_ts"] = now
+
+    ref_frames  = _load_reference()
+    user_angles = _extract_angles(landmarks)
+
+    similarity = _compute_similarity(user_angles, ref_frames) if ref_frames else 0.0
+    passed     = similarity >= SIMILARITY_THRESHOLD
 
     l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
     r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
@@ -87,70 +184,102 @@ def evaluate(landmarks, state=None):
     l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
     r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
 
-    shoulder = [(l_shoulder[0]+r_shoulder[0])/2, (l_shoulder[1]+r_shoulder[1])/2]
-    hip      = [(l_hip[0]+r_hip[0])/2,           (l_hip[1]+r_hip[1])/2]
-    knee     = [(l_knee[0]+r_knee[0])/2,          (l_knee[1]+r_knee[1])/2]
-    ankle    = [(l_ankle[0]+r_ankle[0])/2,         (l_ankle[1]+r_ankle[1])/2]
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip      = (l_hip + r_hip) / 2
+    knee     = (l_knee + r_knee) / 2
+    ankle    = (l_ankle + r_ankle) / 2
 
-    knee_angle = _angle(hip, knee, ankle)
-    # Hip extension: angle at hip between shoulder line and knee line
-    hip_angle  = _angle(shoulder, hip, knee)
-    # Symmetry: difference in y between left and right hip
-    hip_sym    = abs(l_hip[1] - r_hip[1])
-
-    # ── Rep state machine ─────────────────────────────────────────────────────
-    rep_complete = False
-    if state["phase"] == "DOWN" and hip_angle > STATE_UP_THRESH:
-        state["phase"] = "UP"
-    elif state["phase"] == "UP" and hip_angle < STATE_DOWN_THRESH:
-        state["phase"] = "DOWN"
-        state["rep_count"] += 1
-        rep_complete = True
-
-    # ── Checks ────────────────────────────────────────────────────────────────
-    knee_ok = KNEE_ANGLE_MIN <= knee_angle <= KNEE_ANGLE_MAX
-    hip_ok  = hip_angle >= HIP_ANGLE_UP_MIN if state["phase"] == "UP" else True
-    sag_ok  = hip_angle >= HIP_ANGLE_SAG    if state["phase"] == "UP" else True
-    sym_ok  = hip_sym <= HIP_SYMMETRY_TOL
-
-    GREEN  = (0, 220, 80)
-    YELLOW = (0, 200, 255)
-    RED    = (0, 60, 255)
-
-    checks = {
-        "knee_angle": (knee_ok, knee_angle, "Keep your knees at 90 degrees."),
-        "hip_height": (hip_ok,  hip_angle,  "Drive your hips higher."),
-        "no_sag":     (sag_ok,  hip_angle,  "Don't let your hips sag — keep the line straight."),
-        "symmetry":   (sym_ok,  hip_sym,    "Level your hips — don't let one side drop."),
-    }
-
-    all_passed = all(v[0] for v in checks.values())
-    primary_cue = "Good bridge. Squeeze your glutes." if all_passed else next(
-        v[2] for v in checks.values() if not v[0]
+    landmarks_confident = (
+        landmarks[LM.LEFT_SHOULDER.value].visibility > 0.4 and
+        landmarks[LM.LEFT_HIP.value].visibility > 0.4 and
+        landmarks[LM.LEFT_KNEE.value].visibility > 0.4
     )
 
+    hip_angle = _angle(shoulder, hip, knee)
+    is_bridge = hip_angle > 135 and landmarks_confident
+
+    # Allow similarity alone to trigger HOLD — hip_angle threshold can miss
+    # a good bridge if the camera angle compresses the y-axis.
+    entering_hold = is_bridge or (passed and landmarks_confident)
+
+    rep_complete = False
+
+    if state["phase"] == "REST":
+        if landmarks_confident and entering_hold:
+            state["phase"]        = "HOLD"
+            state["_exit_frames"] = 0
+
+    elif state["phase"] == "HOLD":
+        if not landmarks_confident:
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 15:
+                state["phase"]        = "REST"
+                state["_exit_frames"] = 0
+                rep_complete          = True
+        else:
+            state["_exit_frames"] = 0
+            # Exit HOLD only when geometric bridge drops AND similarity fails
+            exiting = not is_bridge and not passed
+            if exiting:
+                state["phase"]      = "REST"
+                state["rep_count"] += 1
+                rep_complete        = True
+            else:
+                # Accumulate hold time whenever pose is good (similarity-gated)
+                if passed:
+                    state["hold_time"] += dt
+
+    if state["hold_time"] >= state["hold_target"]:
+        rep_complete       = True
+        state["hold_time"] = 0.0
+        state["phase"]     = "REST"
+
+    pct = int(similarity * 100)
+    if not ref_frames:
+        primary_cue = "No reference video found — add glute_bridge_reference.mp4"
+    elif not landmarks_confident:
+        primary_cue = "Move closer so I can see your pose."
+    elif passed:
+        primary_cue = "Good bridge. Squeeze your glutes."
+    elif not is_bridge:
+        primary_cue = "Drive your hips up toward the ceiling."
+    else:
+        primary_cue = f"Adjust your position — {pct}% match. Aim for 50%."
+
+    GREEN = (0, 220, 80)
+    RED   = (0, 60, 255)
+    color = GREEN if passed else RED
+
     joint_points = [
-        (shoulder[0], shoulder[1], GREEN,                        "Shoulder"),
-        (l_hip[0],    l_hip[1],    GREEN if sym_ok else RED,     "L-Hip"),
-        (r_hip[0],    r_hip[1],    GREEN if sym_ok else RED,     "R-Hip"),
-        (knee[0],     knee[1],     GREEN if knee_ok else RED,    "Knee"),
-        (ankle[0],    ankle[1],    YELLOW,                       "Ankle"),
+        (shoulder[0], shoulder[1], color, "Shoulder"),
+        (l_hip[0],    l_hip[1],    color, "L-Hip"),
+        (r_hip[0],    r_hip[1],    color, "R-Hip"),
+        (knee[0],     knee[1],     color, "Knee"),
+        (ankle[0],    ankle[1],    color, "Ankle"),
     ]
 
+    checks = {
+        "similarity": (passed, float(pct), f"Match: {pct}% — aim for 50%+"),
+    }
+
     return {
-        "passed":       all_passed,
-        "checks":       checks,
-        "primary_cue":  primary_cue,
-        "joint_points": joint_points,
-        "state":        state,
-        "rep_complete": rep_complete,
+        "passed":        passed,
+        "checks":        checks,
+        "primary_cue":   primary_cue,
+        "joint_points":  joint_points,
+        "state":         state,
+        "rep_complete":  rep_complete,
+        "hold_time":     state["hold_time"],
+        "hold_target":   state["hold_target"],
+        "is_time_based": True,
     }
 
 
 META = {
     "name":        "Glute Bridge",
-    "camera_hint": "Lie on your back, knees bent. Side-on to camera.",
+    "camera_hint":  "Lie on your back, knees bent. Side-on to camera.",
+    "instruction":  "Good. Squeeze your glutes, hold the bridge, and keep your hips level.",
     "phases":      ["Muscle Strain Ph2", "Sciatica Ph2", "Herniated Disc Ph2",
                     "Chronic LBP Ph1", "Facet Joint Ph2", "Spinal Stenosis Ph2"],
-    "rep_trigger": "hip_height",
+    "rep_trigger": "hold_duration",
 }

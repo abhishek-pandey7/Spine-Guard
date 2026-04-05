@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { type Exercise } from '../types/exercise';
 import SkeletonCanvas from './SkeletonCanvas';
 import ViolationOverlay from './ViolationOverlay';
@@ -58,7 +58,7 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
   const completeEmittedRef = useRef(false);
 
   const { landmarks, initMediaPipe } = useMediaPipe(videoRef);
-  const { speak } = useVoiceEngine();
+  const { speak, speakPriority, speakChecks } = useVoiceEngine();
   const { currentRep, peakAngle, endSession } = useSessionTracker();
   const { lightingStatus, getLightingMessage, checkLighting } = useLightingCheck();
 
@@ -72,7 +72,7 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
     sendLandmarks,
   } = useExerciseWebSocket();
 
-  // Connect to Python backend when exercise changes
+  // Connect to Python backend + announce exercise name on load
   useEffect(() => {
     connect(exerciseKey);
     setWsRepCount(0);
@@ -81,8 +81,10 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
     angleHistoryRef.current = [];
     completeEmittedRef.current = false;
     setExerciseComplete(false);
+    // Announce the new exercise by name
+    speak(`Starting ${exercise.name}. ${exercise.coachCue ?? ''}`, 0);
     return () => { /* cleanup handled by hook unmount */ };
-  }, [exerciseKey, connect]);
+  }, [exerciseKey, connect, exercise.name, exercise.coachCue, speak]);
 
   // Session timer
   useEffect(() => {
@@ -128,13 +130,23 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
     if (pythonRepCount >= targetReps && !completeEmittedRef.current) {
       completeEmittedRef.current = true;
       setExerciseComplete(true);
+      speakPriority(`Exercise complete! ${pythonRepCount} reps. Great work!`);
       onExerciseComplete(pythonRepCount, elapsedSeconds);
+    }
+
+    // Detect a new rep and announce it
+    if (pythonRepCount > prevWsRepRef.current) {
+      const delta = pythonRepCount - prevWsRepRef.current;
+      if (delta === 1) {
+        speakPriority(`Rep ${pythonRepCount} of ${targetReps}. Good.`);
+      }
+      prevWsRepRef.current = pythonRepCount;
     }
 
     // Build violations from Python checks
     const active: string[] = [];
     if (lastResult.checks) {
-      for (const [checkName, [passed, _value, cue]] of Object.entries(lastResult.checks)) {
+      for (const [_checkName, [passed, _value, cue]] of Object.entries(lastResult.checks)) {
         if (!passed) {
           active.push(cue);
         }
@@ -178,11 +190,22 @@ export default function PatientPanel({ exercise, onExerciseComplete, onSessionEn
       }
     }
 
-    // Voice feedback from Python cue (5 second gap)
-    if (!lastResult.passed && lastResult.primary_cue) {
-      speak(lastResult.primary_cue, 5000);
+    // Voice coaching: rotate through ALL failing check cues for specific corrections
+    if (!lastResult.passed && lastResult.checks) {
+      const checksWithMultiple = Object.keys(lastResult.checks).length > 1;
+      if (checksWithMultiple) {
+        // Multi-check exercises: cycle through each failing check's specific cue
+        speakChecks(lastResult.checks);
+      } else if (lastResult.primary_cue) {
+        // Single-check (similarity-only): use primary_cue with throttle
+        speak(lastResult.primary_cue, 5000);
+      }
+    } else if (lastResult.passed && lastResult.primary_cue) {
+      // Positive reinforcement during good form (longer cooldown — don't interrupt focus)
+      speak(lastResult.primary_cue, 8000);
     }
-  }, [lastResult, landmarks, speak, isConnected, targetReps, elapsedSeconds, onExerciseComplete]);
+  }, [lastResult, landmarks, speak, speakPriority, speakChecks, isConnected, targetReps, elapsedSeconds, onExerciseComplete]);
+
 
   const startCamera = useCallback(async () => {
     setMpLoading(true);

@@ -2,67 +2,187 @@
 Piriformis Stretch — Exercise Contract
 ───────────────────────────────────────
 Camera position : Front-facing or top-down (patient lying on back)
-Starting position: Lying on back, one ankle crossed over opposite knee
+Mode            : Similarity-based — compares user pose to a reference video
 
-Movement: Patient pulls the uncrossed leg toward chest to stretch
-          the piriformis muscle of the crossed leg
-
-What we check
+How it works
 ─────────────
-1. Figure-four position : ankle rests on opposite knee (crossed legs)
-2. Pull motion          : uncrossed leg moves toward chest
-3. Back contact         : lower back stays flat on floor
-4. Stability            : no excessive rocking or twisting
+1. On first call, loads a reference video (piriformis_stretch_reference.mp4 next to this file)
+2. Samples 20 frames evenly and stores all angle sets (no averaging)
+3. Each live frame, finds the BEST matching reference frame
+4. Similarity >= 50% -> hold time accumulates
+5. Similarity ≥ 50% → hold time accumulates
+6. Hold time reaches target → rep complete
 
-States tracked
-──────────────
-REST   → legs flat
-STRETCH → pulling leg toward chest
-Rep counted each REST→STRETCH→REST cycle
-
-Feedback cues
-─────────────
-PASS   : "Good. Hold the stretch and breathe."
-CROSS  : "Cross your ankle over the opposite knee."
-PULL   : "Pull your leg gently toward your chest."
-BACK   : "Keep your lower back on the floor."
-TWIST  : "Keep your shoulders flat — don't twist."
+Key angles checked (front-facing piriformis stretch)
+─────────────────────────────────────────────────────
+- Ankle ↔ opposite Knee distance  (crossed legs)
+- Knee → Hip distance             (pull motion)
+- Shoulder → Hip → Knee angle     (back flatness)
+- L/R shoulder Y difference       (twist)
 """
 
 import numpy as np
 import mediapipe as mp
+import os
+import cv2
 
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
-CROSS_DISTANCE   = 0.18  # normalised — ankle close to opposite knee (was 0.10)
-PULL_DISTANCE    = 0.04  # normalised — knee moves toward chest (was 0.08)
-BACK_FLAT_TOL    = 20    # degrees — shoulder-hip-knee flatness (was 12)
-TWIST_TOL        = 0.09  # normalised y — left vs right shoulder (was 0.05)
+SIMILARITY_THRESHOLD = 0.80
+HOLD_TARGET_DEFAULT  = 30.0
+SAMPLE_FRAMES        = 20
 
-STRETCH_THRESH   = 0.03  # knee movement toward chest (was 0.06)
+# Stores all sampled reference frames (not averaged)
+_reference_frames = None
+_ref_pose         = None
 
 
-def _angle(a, b, c):
-    a, b, c = np.array(a), np.array(b), np.array(c)
-    ba, bc = a - b, c - b
-    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
-    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+def _get_ref_pose():
+    global _ref_pose
+    if _ref_pose is None:
+        _ref_pose = mp_pose.Pose(
+            static_image_mode=True,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+        )
+    return _ref_pose
 
 
 def _pt(landmarks, lm_enum):
     lm = landmarks[lm_enum.value]
-    return [lm.x, lm.y]
+    return np.array([lm.x, lm.y])
+
+
+def _angle(a, b, c):
+    ba  = a - b
+    bc  = c - b
+    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
 
 
 def _dist(p1, p2):
     return float(np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2))
 
 
-def evaluate(landmarks, baseline_shoulder_y=None, state=None):
+def _extract_angles(landmarks):
+    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
+    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+    l_hip      = _pt(landmarks, LM.LEFT_HIP)
+    r_hip      = _pt(landmarks, LM.RIGHT_HIP)
+    l_knee     = _pt(landmarks, LM.LEFT_KNEE)
+    r_knee     = _pt(landmarks, LM.RIGHT_KNEE)
+    l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
+    r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
+
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip      = (l_hip + r_hip) / 2
+    knee     = (l_knee + r_knee) / 2
+
+    l_ankle_r_knee = _dist(l_ankle, r_knee)
+    r_ankle_l_knee = _dist(r_ankle, l_knee)
+    crossed_dist = min(l_ankle_r_knee, r_ankle_l_knee)
+    pull_dist = abs(hip[1] - knee[1])
+    back_angle = _angle(shoulder, hip, knee)
+    twist = abs(l_shoulder[1] - r_shoulder[1])
+
+    return {
+        "crossed":    crossed_dist,
+        "pull_dist":  pull_dist,
+        "back_angle": back_angle,
+        "twist":      twist,
+    }
+
+
+def _load_reference():
+    global _reference_frames
+    if _reference_frames is not None:
+        return _reference_frames
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for fname in ["piriformis_stretch_reference.mp4", "piriformis_stretch_ref.mp4",
+                  "piriformis_stretch_reference.avi", "piriformis_stretch_ref.avi"]:
+        path = os.path.join(here, fname)
+        if not os.path.isfile(path):
+            continue
+
+        cap   = cv2.VideoCapture(path)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total < 1:
+            cap.release()
+            continue
+
+        indices    = np.linspace(0, total - 1, min(SAMPLE_FRAMES, total), dtype=int)
+        pose       = _get_ref_pose()
+        all_frames = []
+
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = pose.process(rgb)
+            if result.pose_landmarks:
+                all_frames.append(_extract_angles(result.pose_landmarks.landmark))
+        cap.release()
+
+        if not all_frames:
+            print(f"[Piriformis Stretch] No pose detected in any frame of {fname}")
+            continue
+
+        _reference_frames = all_frames
+        print(f"[Piriformis Stretch] Reference loaded from {fname} "
+              f"({len(all_frames)}/{len(indices)} frames valid)")
+        return _reference_frames
+
+    print("[Piriformis Stretch] WARNING: No reference video found. "
+          "Place piriformis_stretch_reference.mp4 next to piriformis_stretch.py")
+    return None
+
+
+def _compute_similarity(user_angles, ref_frames):
+    """Find the best matching reference frame and return its score."""
+    MAX_DIFF   = 30.0
+    best_score = 0.0
+    for ref_angles in ref_frames:
+        scores = []
+        for key in ref_angles:
+            if key not in user_angles:
+                continue
+            diff  = abs(user_angles[key] - ref_angles[key])
+            score = max(0.0, 1.0 - diff / MAX_DIFF)
+            scores.append(score)
+        frame_score = float(np.mean(scores)) if scores else 0.0
+        best_score  = max(best_score, frame_score)
+    return best_score
+
+
+def evaluate(landmarks, state=None):
     if state is None:
-        state = {"phase": "REST", "rep_count": 0}
+        state = {
+            "phase":        "REST",
+            "hold_time":    0.0,
+            "hold_target":  HOLD_TARGET_DEFAULT,
+            "rep_count":    0,
+            "_last_ts":     None,
+            "_exit_frames": 0,
+        }
+
+    import time
+    now = time.time()
+    dt  = min(now - state["_last_ts"], 0.1) if state["_last_ts"] else 0.0
+    state["_last_ts"] = now
+
+    ref_frames  = _load_reference()
+    user_angles = _extract_angles(landmarks)
+
+    similarity = _compute_similarity(user_angles, ref_frames) if ref_frames else 0.0
+    passed     = similarity >= SIMILARITY_THRESHOLD
+
+    l_vis = landmarks[LM.LEFT_HIP.value].visibility
+    r_vis = landmarks[LM.RIGHT_HIP.value].visibility
+    landmarks_confident = l_vis > 0.4 and r_vis > 0.4
 
     l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
     r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
@@ -73,76 +193,86 @@ def evaluate(landmarks, baseline_shoulder_y=None, state=None):
     l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
     r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
 
-    shoulder = [(l_shoulder[0]+r_shoulder[0])/2, (l_shoulder[1]+r_shoulder[1])/2]
-    hip      = [(l_hip[0]+r_hip[0])/2,           (l_hip[1]+r_hip[1])/2]
-    knee     = [(l_knee[0]+r_knee[0])/2,          (l_knee[1]+r_knee[1])/2]
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip      = (l_hip + r_hip) / 2
 
-    # Figure-four: distance between one ankle and opposite knee
-    l_ankle_r_knee = _dist(l_ankle, r_knee)
-    r_ankle_l_knee = _dist(r_ankle, l_knee)
-    crossed = min(l_ankle_r_knee, r_ankle_l_knee) < CROSS_DISTANCE
+    is_stretch    = landmarks_confident and user_angles.get("pull_dist", 0) > 0.03
+    entering_hold = is_stretch or (passed and landmarks_confident)
 
-    # Pull motion: knee moving toward chest (higher y in image = lower on body)
-    pull_dist = abs(hip[1] - knee[1])
-    pulling = pull_dist > PULL_DISTANCE
-
-    # Back flatness
-    back_angle = _angle(shoulder, hip, knee)
-    back_ok = back_angle >= (180 - BACK_FLAT_TOL)
-
-    # Twist
-    twist = abs(l_shoulder[1] - r_shoulder[1])
-    twist_ok = twist <= TWIST_TOL
-
-    # ── Rep state machine ─────────────────────────────────────────────────
-    is_stretch = pulling and crossed
     rep_complete = False
 
-    if state["phase"] == "REST" and is_stretch:
-        state["phase"] = "STRETCH"
-    elif state["phase"] == "STRETCH" and not is_stretch:
-        state["phase"] = "REST"
-        state["rep_count"] += 1
-        rep_complete = True
+    if state["phase"] == "REST":
+        if landmarks_confident and entering_hold:
+            state["phase"]        = "HOLD"
+            state["_exit_frames"] = 0
 
-    GREEN  = (0, 220, 80)
-    YELLOW = (0, 200, 255)
-    RED    = (0, 60, 255)
+    elif state["phase"] == "HOLD":
+        if not landmarks_confident:
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 15:
+                state["phase"]        = "REST"
+                state["_exit_frames"] = 0
+                rep_complete          = True
+        else:
+            state["_exit_frames"] = 0
+            if not is_stretch and not passed:
+                state["phase"]      = "REST"
+                state["rep_count"] += 1
+                rep_complete        = True
+            elif passed:
+                state["hold_time"] += dt
 
-    checks = {
-        "crossed_legs": (crossed,  crossed,    "Cross your ankle over the opposite knee."),
-        "pull_motion":  (pulling,  pull_dist,  "Pull your leg gently toward your chest."),
-        "back_flat":    (back_ok,  back_angle, "Keep your lower back on the floor."),
-        "no_twist":     (twist_ok, twist,      "Keep your shoulders flat — don't twist."),
-    }
+    if state["hold_time"] >= state["hold_target"]:
+        rep_complete       = True
+        state["hold_time"] = 0.0
+        state["phase"]     = "REST"
 
-    all_passed = all(v[0] for v in checks.values())
-    primary_cue = "Good. Hold the stretch and breathe." if all_passed else next(
-        v[2] for v in checks.values() if not v[0]
-    )
+    pct = int(similarity * 100)
+    if not ref_frames:
+        primary_cue = "No reference video found — add piriformis_stretch_reference.mp4"
+    elif not landmarks_confident:
+        primary_cue = "Move closer so I can see your pose."
+    elif passed:
+        primary_cue = "Good. Hold the stretch and breathe."
+    elif not is_stretch:
+        primary_cue = "Cross your ankle over the opposite knee and pull gently."
+    else:
+        primary_cue = f"Adjust your position — {pct}% match. Aim for 50%."
+
+    GREEN = (0, 220, 80)
+    RED   = (0, 60, 255)
+    color = GREEN if passed else RED
 
     joint_points = [
-        (shoulder[0], shoulder[1], GREEN if twist_ok else RED, "Shoulder"),
-        (hip[0],      hip[1],      GREEN if back_ok else RED, "Hip"),
-        (l_knee[0],   l_knee[1],   GREEN if crossed else RED, "L-Knee"),
-        (r_knee[0],   r_knee[1],   GREEN if crossed else RED, "R-Knee"),
-        (l_ankle[0],  l_ankle[1],  YELLOW, "L-Ankle"),
-        (r_ankle[0],  r_ankle[1],  YELLOW, "R-Ankle"),
+        (shoulder[0], shoulder[1], color, "Shoulder"),
+        (hip[0],      hip[1],      color, "Hip"),
+        (l_knee[0],   l_knee[1],   color, "L-Knee"),
+        (r_knee[0],   r_knee[1],   color, "R-Knee"),
+        (l_ankle[0],  l_ankle[1],  color, "L-Ankle"),
+        (r_ankle[0],  r_ankle[1],  color, "R-Ankle"),
     ]
 
+    checks = {
+        "similarity": (passed, float(pct), f"Match: {pct}% — aim for 50%+"),
+    }
+
     return {
-        "passed":       all_passed,
-        "checks":       checks,
-        "primary_cue":  primary_cue,
-        "joint_points": joint_points,
-        "state":        state,
-        "rep_complete": rep_complete,
+        "passed":        passed,
+        "checks":        checks,
+        "primary_cue":   primary_cue,
+        "joint_points":  joint_points,
+        "state":         state,
+        "rep_complete":  rep_complete,
+        "hold_time":     state["hold_time"],
+        "hold_target":   state["hold_target"],
+        "is_time_based": True,
     }
 
 
 META = {
     "name":        "Piriformis Stretch",
-    "camera_hint": "Lie on your back, cross ankle over knee. Front-facing or top-down.",
+    "camera_hint":  "Lie on your back, cross ankle over knee. Front-facing or top-down.",
+    "instruction":  "Good. Gently pull your knee toward your chest and breathe.",
     "phases":      ["Sciatica Ph1"],
-    "rep_trigger": "pull_motion",
+    "rep_trigger": "hold_duration",
 }

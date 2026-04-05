@@ -1,131 +1,241 @@
 """
 Chin Tuck — Exercise Contract
-──────────────────────────────
+─────────────────────────────
 Camera position : Side-on (patient's left or right side faces camera)
-Starting position: Sitting or standing upright, looking straight ahead
+Mode            : Similarity-based — compares user pose to a reference video
 
-Movement: Patient gently draws chin straight back (making a "double chin")
-          without tilting head up or down
-
-What we check
+How it works
 ─────────────
-1. Horizontal movement : nose moves backward (not up or down)
-2. Head tilt           : ear stays level (no nodding)
-3. Shoulder position   : shoulders stay relaxed (not rising)
-4. Range of motion     : adequate chin retraction distance
+1. On first call, loads a reference video (chin_tuck_reference.mp4 next to this file)
+2. Samples frames evenly across the video and extracts joint angles from each
+3. Averages the angles across all valid frames → robust reference pose
+4. Each live frame, computes same angles from user and compares
+5. Similarity ≥ 50% → hold time accumulates
+6. Hold time reaches target → rep complete
 
-States tracked
-──────────────
-NEUTRAL → head in normal position
-TUCK    → chin drawn back
-Rep counted each NEUTRAL→TUCK→NEUTRAL cycle
-
-Feedback cues
-─────────────
-PASS   : "Good. Hold and breathe."
-TILT   : "Keep your head level — don't nod up or down."
-SHOULDER: "Keep your shoulders relaxed."
-RANGE  : "Pull your chin straight back — like making a double chin."
+Key angles checked (side-on chin tuck)
+───────────────────────────────────────
+- Horizontal movement : nose moves backward
+- Head tilt           : ear stays level
+- Shoulder position   : shoulders stay relaxed
 """
 
 import numpy as np
 import mediapipe as mp
+import os
+import cv2
 
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
-TUCK_DISTANCE    = 0.012 # normalised x — nose movement backward (was 0.02)
-HEAD_TILT_TOL    = 0.05  # normalised y — ear level change (was 0.03)
-SHOULDER_RISE_TOL= 0.05  # normalised y — shoulder shouldn't rise (was 0.03)
+SIMILARITY_THRESHOLD = 0.50
+HOLD_TARGET_DEFAULT  = 30.0
+SAMPLE_FRAMES        = 20
 
-TUCK_THRESH      = 0.008 # minimum nose movement to count as tuck (was 0.015)
+# Cached reference angles
+_reference_angles = None
+_ref_pose         = None
 
 
-def _angle(a, b, c):
-    a, b, c = np.array(a), np.array(b), np.array(c)
-    ba, bc = a - b, c - b
-    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
-    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+def _get_ref_pose():
+    global _ref_pose
+    if _ref_pose is None:
+        _ref_pose = mp_pose.Pose(
+            static_image_mode=True,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+        )
+    return _ref_pose
 
 
 def _pt(landmarks, lm_enum):
     lm = landmarks[lm_enum.value]
-    return [lm.x, lm.y]
+    return np.array([lm.x, lm.y])
 
 
-def evaluate(landmarks, baseline_nose_x=None, baseline_ear_y=None, state=None):
-    if state is None:
-        state = {"phase": "NEUTRAL", "rep_count": 0}
+def _angle(a, b, c):
+    ba  = a - b
+    bc  = c - b
+    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
 
+
+def _extract_angles(landmarks):
     nose       = _pt(landmarks, LM.NOSE)
     l_ear      = _pt(landmarks, LM.LEFT_EAR)
     r_ear      = _pt(landmarks, LM.RIGHT_EAR)
     l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
     r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
 
-    ear = [(l_ear[0]+r_ear[0])/2, (l_ear[1]+r_ear[1])/2]
-    shoulder = [(l_shoulder[0]+r_shoulder[0])/2, (l_shoulder[1]+r_shoulder[1])/2]
-
-    # Auto-capture baselines on first frame if not provided
-    if "baseline_nose_x" not in state:
-        state["baseline_nose_x"] = nose[0]
-    if "baseline_ear_y" not in state:
-        state["baseline_ear_y"] = ear[1]
-
-    bn_x = state.get("baseline_nose_x", nose[0])
-    be_y = state.get("baseline_ear_y", ear[1])
-
-    # Tuck detection: nose moving backward (x decreases in side view)
-    tuck_dist = bn_x - nose[0]
-    tuck_ok = tuck_dist >= TUCK_DISTANCE
-
-    # Head tilt: ear y-position change
-    head_tilt = abs(ear[1] - be_y)
-    tilt_ok = head_tilt <= HEAD_TILT_TOL
-
-    # Shoulder rise
-    shoulder_ok = True  # simplified — would need baseline
-
-    # ── Rep state machine ─────────────────────────────────────────────────
-    is_tucked = tuck_dist > TUCK_THRESH
-    rep_complete = False
-
-    if state["phase"] == "NEUTRAL" and is_tucked:
-        state["phase"] = "TUCK"
-    elif state["phase"] == "TUCK" and not is_tucked:
-        state["phase"] = "NEUTRAL"
-        state["rep_count"] += 1
-        rep_complete = True
-
-    GREEN  = (0, 220, 80)
-    YELLOW = (0, 200, 255)
-    RED    = (0, 60, 255)
-
-    checks = {
-        "tuck_range":  (tuck_ok,  tuck_dist, "Pull your chin straight back — like making a double chin."),
-        "head_level":  (tilt_ok,  head_tilt, "Keep your head level — don't nod up or down."),
-        "shoulders":   (shoulder_ok, shoulder[1], "Keep your shoulders relaxed."),
-    }
-
-    all_passed = all(v[0] for v in checks.values())
-    primary_cue = "Good. Hold and breathe." if all_passed else next(
-        v[2] for v in checks.values() if not v[0]
-    )
-
-    joint_points = [
-        (nose[0],     nose[1],     GREEN if tuck_ok else RED, "Nose"),
-        (ear[0],      ear[1],      GREEN if tilt_ok else RED, "Ear"),
-        (shoulder[0], shoulder[1], GREEN, "Shoulder"),
-    ]
+    ear = (l_ear + r_ear) / 2
+    shoulder = (l_shoulder + r_shoulder) / 2
 
     return {
-        "passed":       all_passed,
-        "checks":       checks,
-        "primary_cue":  primary_cue,
-        "joint_points": joint_points,
-        "state":        state,
-        "rep_complete": rep_complete,
+        "nose_x":      nose[0],
+        "ear_y":       ear[1],
+        "shoulder_y":  shoulder[1],
+        "nose_ear_dx": nose[0] - ear[0],
+    }
+
+
+def _load_reference():
+    global _reference_angles
+
+    if _reference_angles is not None:
+        return _reference_angles
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for fname in ["chin_tuck_reference.mp4", "chin_tuck_ref.mp4",
+                  "chin_tuck_reference.avi", "chin_tuck_ref.avi"]:
+        path = os.path.join(here, fname)
+        if not os.path.isfile(path):
+            continue
+
+        cap        = cv2.VideoCapture(path)
+        total      = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total < 1:
+            cap.release()
+            continue
+
+        indices    = np.linspace(0, total - 1, min(SAMPLE_FRAMES, total), dtype=int)
+        pose       = _get_ref_pose()
+        all_angles = []
+
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = pose.process(rgb)
+            if result.pose_landmarks:
+                all_angles.append(_extract_angles(result.pose_landmarks.landmark))
+        cap.release()
+
+        if not all_angles:
+            print(f"[Chin Tuck] No pose detected in any frame of {fname}")
+            continue
+
+        averaged = {}
+        for key in all_angles[0]:
+            averaged[key] = float(np.mean([a[key] for a in all_angles]))
+
+        _reference_angles = averaged
+        print(f"[Chin Tuck] Reference loaded from {fname} "
+              f"({len(all_angles)}/{len(indices)} frames valid): {averaged}")
+        return _reference_angles
+
+    print("[Chin Tuck] WARNING: No reference video found. "
+          "Place chin_tuck_reference.mp4 next to chin_tuck.py")
+    return None
+
+
+def _compute_similarity(user_angles, ref_angles):
+    MAX_DIFF = 30.0
+    scores   = []
+    for key in ref_angles:
+        if key not in user_angles:
+            continue
+        diff  = abs(user_angles[key] - ref_angles[key])
+        score = max(0.0, 1.0 - diff / MAX_DIFF)
+        scores.append(score)
+    return float(np.mean(scores)) if scores else 0.0
+
+
+def evaluate(landmarks, state=None):
+    if state is None:
+        state = {
+            "phase":        "REST",
+            "hold_time":    0.0,
+            "hold_target":  HOLD_TARGET_DEFAULT,
+            "rep_count":    0,
+            "_last_ts":     None,
+            "_exit_frames": 0,
+        }
+
+    import time
+    now = time.time()
+    dt  = min(now - state["_last_ts"], 0.1) if state["_last_ts"] else 0.0
+    state["_last_ts"] = now
+
+    ref_angles  = _load_reference()
+    user_angles = _extract_angles(landmarks)
+
+    similarity  = _compute_similarity(user_angles, ref_angles) if ref_angles else 0.0
+    passed      = similarity >= SIMILARITY_THRESHOLD
+
+    nose_vis = landmarks[LM.NOSE.value].visibility
+    ear_vis  = landmarks[LM.LEFT_EAR.value].visibility
+    landmarks_confident = nose_vis > 0.4 and ear_vis > 0.4
+
+    nose = _pt(landmarks, LM.NOSE)
+    l_ear = _pt(landmarks, LM.LEFT_EAR)
+    r_ear = _pt(landmarks, LM.RIGHT_EAR)
+    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
+    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+
+    ear = (l_ear + r_ear) / 2
+    shoulder = (l_shoulder + r_shoulder) / 2
+
+    is_tucked = landmarks_confident and abs(nose[0] - ear[0]) < 0.05
+
+    rep_complete = False
+
+    if state["phase"] == "REST" and is_tucked:
+        state["phase"]        = "HOLD"
+        state["_exit_frames"] = 0
+
+    elif state["phase"] == "HOLD":
+        if not is_tucked or not landmarks_confident:
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 15:
+                state["phase"]        = "REST"
+                state["_exit_frames"] = 0
+                rep_complete          = True
+        else:
+            state["_exit_frames"] = 0
+            if passed:
+                state["hold_time"] += dt
+
+    if state["hold_time"] >= state["hold_target"]:
+        rep_complete       = True
+        state["hold_time"] = 0.0
+        state["phase"]     = "REST"
+
+    pct = int(similarity * 100)
+    if not ref_angles:
+        primary_cue = "No reference video found — add chin_tuck_reference.mp4"
+    elif not is_tucked:
+        primary_cue = "Pull your chin straight back — like making a double chin."
+    elif passed:
+        primary_cue = "Good. Hold and breathe."
+    else:
+        primary_cue = f"Adjust your position — {pct}% match. Aim for 50%."
+
+    GREEN = (0, 220, 80)
+    RED   = (0, 60, 255)
+    color = GREEN if passed else RED
+
+    joint_points = [
+        (nose[0],     nose[1],     color, "Nose"),
+        (ear[0],      ear[1],      color, "Ear"),
+        (shoulder[0], shoulder[1], color, "Shoulder"),
+    ]
+
+    checks = {
+        "similarity": (passed, float(pct), f"Match: {pct}% — aim for 50%+"),
+    }
+
+    return {
+        "passed":        passed,
+        "checks":        checks,
+        "primary_cue":   primary_cue,
+        "joint_points":  joint_points,
+        "state":         state,
+        "rep_complete":  rep_complete,
+        "hold_time":     state["hold_time"],
+        "hold_target":   state["hold_target"],
+        "is_time_based": True,
     }
 
 
@@ -133,5 +243,5 @@ META = {
     "name":        "Chin Tuck",
     "camera_hint": "Sitting or standing, side-on to camera.",
     "phases":      ["Postural Pain Ph1"],
-    "rep_trigger": "tuck_range",
+    "rep_trigger": "hold_duration",
 }

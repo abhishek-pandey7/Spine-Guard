@@ -2,70 +2,66 @@
 McKenzie Press-up — Exercise Contract
 ──────────────────────────────────────
 Camera position : Side-on (patient's left or right side faces camera)
-Starting position: Lying face down (prone), hands under shoulders
+Mode            : Similarity-based — compares user pose to a reference video
 
-Movement: Patient presses upper body up using arms while keeping
-          hips and pelvis flat on the floor, extending the spine
-
-What we check
+How it works
 ─────────────
-1. Hip contact          : hips stay on floor (not lifting)
-2. Spine extension      : chest rises, creating spinal extension
-3. Arm position         : elbows extend, hands under shoulders
-4. Pelvic stability     : pelvis doesn't rotate or lift
+1. On first call, loads a reference video (mckenzie_pressup_reference.mp4 next to this file)
+2. Samples 20 frames evenly and stores all angle sets (no averaging)
+3. Each live frame, finds the BEST matching reference frame
+4. Similarity >= 50% -> hold time accumulates
+5. Similarity ≥ 50% → hold time accumulates
+6. Hold time reaches target → rep complete
 
-States tracked
-──────────────
-DOWN   → chest on floor
-UP     → chest elevated, spine extended
-Rep counted each DOWN→UP→DOWN cycle
-
-Feedback cues
-─────────────
-PASS   : "Good. Hold at the top and breathe."
-HIP    : "Keep your hips on the floor — don't lift them."
-ARM    : "Push through your hands — straighten your arms."
-PAIN   : "Only go as far as comfortable — don't push into pain."
-PELVIS : "Keep your pelvis stable on the floor."
+Key angles checked (side-on McKenzie press-up)
+───────────────────────────────────────────────
+- Hip Y position              (hips stay low)
+- Hip → Shoulder Y diff       (chest elevation)
+- Shoulder → Elbow → Wrist    (arm extension)
+- Shoulder ↔ Hip angle        (pelvic tilt)
 """
 
 import numpy as np
 import mediapipe as mp
+import os
+import cv2
 
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
-HIP_CONTACT_TOL  = 0.08  # normalised y — hips should stay low (was 0.04)
-CHEST_ELEVATION  = 0.03  # normalised y — chest must rise (was 0.06)
-ARM_EXTEND_MIN   = 130   # degrees — elbow angle when pressing up (was 150)
-PELVIS_TILT_TOL  = 18    # degrees — pelvic rotation (was 10)
+SIMILARITY_THRESHOLD = 0.80
+HOLD_TARGET_DEFAULT  = 30.0
+SAMPLE_FRAMES        = 20
 
-UP_THRESH        = 0.02  # shoulder above hip to count as up (was 0.04)
+# Stores all sampled reference frames (not averaged)
+_reference_frames = None
+_ref_pose         = None
 
 
-def _angle(a, b, c):
-    a, b, c = np.array(a), np.array(b), np.array(c)
-    ba, bc = a - b, c - b
-    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
-    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+def _get_ref_pose():
+    global _ref_pose
+    if _ref_pose is None:
+        _ref_pose = mp_pose.Pose(
+            static_image_mode=True,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+        )
+    return _ref_pose
 
 
 def _pt(landmarks, lm_enum):
     lm = landmarks[lm_enum.value]
-    return [lm.x, lm.y]
+    return np.array([lm.x, lm.y])
 
 
-def _horizontal_angle(p1, p2):
-    dx = p2[0] - p1[0]
-    dy = p2[1] - p1[1]
-    return float(abs(np.degrees(np.arctan2(dy, dx))))
+def _angle(a, b, c):
+    ba  = a - b
+    bc  = c - b
+    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
 
 
-def evaluate(landmarks, state=None):
-    if state is None:
-        state = {"phase": "DOWN", "rep_count": 0}
-
+def _extract_angles(landmarks):
     l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
     r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
     l_hip      = _pt(landmarks, LM.LEFT_HIP)
@@ -75,74 +71,203 @@ def evaluate(landmarks, state=None):
     l_wrist    = _pt(landmarks, LM.LEFT_WRIST)
     r_wrist    = _pt(landmarks, LM.RIGHT_WRIST)
 
-    shoulder = [(l_shoulder[0]+r_shoulder[0])/2, (l_shoulder[1]+r_shoulder[1])/2]
-    hip      = [(l_hip[0]+r_hip[0])/2,           (l_hip[1]+r_hip[1])/2]
-    elbow    = [(l_elbow[0]+r_elbow[0])/2,         (l_elbow[1]+r_elbow[1])/2]
-    wrist    = [(l_wrist[0]+r_wrist[0])/2,         (l_wrist[1]+r_wrist[1])/2]
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip      = (l_hip + r_hip) / 2
+    elbow    = (l_elbow + r_elbow) / 2
+    wrist    = (l_wrist + r_wrist) / 2
 
-    # Hip contact: hips should stay low (higher y = lower in image)
-    hip_contact = hip[1] >= 0.80  # hips near bottom of frame
-    hip_ok = hip_contact
-
-    # Chest elevation: shoulders above hips
-    chest_elev = hip[1] - shoulder[1]
-    chest_ok = chest_elev > CHEST_ELEVATION
-
-    # Arm extension
     arm_angle = _angle(shoulder, elbow, wrist)
-    arm_ok = arm_angle >= ARM_EXTEND_MIN
-
-    # Pelvic tilt: hip-shoulder line angle
-    pelvis_tilt = _horizontal_angle(shoulder, hip)
-    pelvis_ok = pelvis_tilt <= PELVIS_TILT_TOL
-
-    # ── Rep state machine ─────────────────────────────────────────────────
-    is_up = (hip[1] - shoulder[1]) > UP_THRESH
-    rep_complete = False
-
-    if state["phase"] == "DOWN" and is_up:
-        state["phase"] = "UP"
-    elif state["phase"] == "UP" and not is_up:
-        state["phase"] = "DOWN"
-        state["rep_count"] += 1
-        rep_complete = True
-
-    GREEN  = (0, 220, 80)
-    YELLOW = (0, 200, 255)
-    RED    = (0, 60, 255)
-
-    checks = {
-        "hip_contact":  (hip_ok,  hip[1],    "Keep your hips on the floor — don't lift them."),
-        "chest_elev":   (chest_ok, chest_elev, "Push your chest up — extend through your spine."),
-        "arm_extend":   (arm_ok,  arm_angle,  "Push through your hands — straighten your arms."),
-        "pelvis_stable":(pelvis_ok, pelvis_tilt, "Keep your pelvis stable on the floor."),
-    }
-
-    all_passed = all(v[0] for v in checks.values())
-    primary_cue = "Good. Hold at the top and breathe." if all_passed else next(
-        v[2] for v in checks.values() if not v[0]
-    )
-
-    joint_points = [
-        (shoulder[0], shoulder[1], GREEN if chest_ok else RED, "Shoulder"),
-        (hip[0],      hip[1],      GREEN if hip_ok else RED, "Hip"),
-        (elbow[0],    elbow[1],    GREEN if arm_ok else RED, "Elbow"),
-        (wrist[0],    wrist[1],    YELLOW, "Wrist"),
-    ]
+    dx = shoulder[0] - hip[0]
+    dy = shoulder[1] - hip[1]
+    pelvis_tilt = float(abs(np.degrees(np.arctan2(dy, dx))))
 
     return {
-        "passed":       all_passed,
-        "checks":       checks,
-        "primary_cue":  primary_cue,
-        "joint_points": joint_points,
-        "state":        state,
-        "rep_complete": rep_complete,
+        "hip_y":       hip[1],
+        "chest_elev":  hip[1] - shoulder[1],
+        "arm_angle":   arm_angle,
+        "pelvis_tilt": pelvis_tilt,
+    }
+
+
+def _load_reference():
+    global _reference_frames
+    if _reference_frames is not None:
+        return _reference_frames
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for fname in ["mckenzie_pressup_reference.mp4", "mckenzie_pressup_ref.mp4",
+                  "mckenzie_pressup_reference.avi", "mckenzie_pressup_ref.avi"]:
+        path = os.path.join(here, fname)
+        if not os.path.isfile(path):
+            continue
+
+        cap   = cv2.VideoCapture(path)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total < 1:
+            cap.release()
+            continue
+
+        indices    = np.linspace(0, total - 1, min(SAMPLE_FRAMES, total), dtype=int)
+        pose       = _get_ref_pose()
+        all_frames = []
+
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = pose.process(rgb)
+            if result.pose_landmarks:
+                all_frames.append(_extract_angles(result.pose_landmarks.landmark))
+        cap.release()
+
+        if not all_frames:
+            print(f"[McKenzie Press-up] No pose detected in any frame of {fname}")
+            continue
+
+        _reference_frames = all_frames
+        print(f"[McKenzie Press-up] Reference loaded from {fname} "
+              f"({len(all_frames)}/{len(indices)} frames valid)")
+        return _reference_frames
+
+    print("[McKenzie Press-up] WARNING: No reference video found. "
+          "Place mckenzie_pressup_reference.mp4 next to mckenzie_pressup.py")
+    return None
+
+
+def _compute_similarity(user_angles, ref_frames):
+    """Find the best matching reference frame and return its score."""
+    MAX_DIFF   = 30.0
+    best_score = 0.0
+    for ref_angles in ref_frames:
+        scores = []
+        for key in ref_angles:
+            if key not in user_angles:
+                continue
+            diff  = abs(user_angles[key] - ref_angles[key])
+            score = max(0.0, 1.0 - diff / MAX_DIFF)
+            scores.append(score)
+        frame_score = float(np.mean(scores)) if scores else 0.0
+        best_score  = max(best_score, frame_score)
+    return best_score
+
+
+def evaluate(landmarks, state=None):
+    if state is None:
+        state = {
+            "phase":        "REST",
+            "hold_time":    0.0,
+            "hold_target":  HOLD_TARGET_DEFAULT,
+            "rep_count":    0,
+            "_last_ts":     None,
+            "_exit_frames": 0,
+        }
+
+    import time
+    now = time.time()
+    dt  = min(now - state["_last_ts"], 0.1) if state["_last_ts"] else 0.0
+    state["_last_ts"] = now
+
+    ref_frames  = _load_reference()
+    user_angles = _extract_angles(landmarks)
+
+    similarity = _compute_similarity(user_angles, ref_frames) if ref_frames else 0.0
+    passed     = similarity >= SIMILARITY_THRESHOLD
+
+    l_vis = landmarks[LM.LEFT_SHOULDER.value].visibility
+    r_vis = landmarks[LM.RIGHT_SHOULDER.value].visibility
+    landmarks_confident = l_vis > 0.4 and r_vis > 0.4
+
+    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
+    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+    l_hip = _pt(landmarks, LM.LEFT_HIP)
+    r_hip = _pt(landmarks, LM.RIGHT_HIP)
+    l_elbow = _pt(landmarks, LM.LEFT_ELBOW)
+    r_elbow = _pt(landmarks, LM.RIGHT_ELBOW)
+    l_wrist = _pt(landmarks, LM.LEFT_WRIST)
+    r_wrist = _pt(landmarks, LM.RIGHT_WRIST)
+
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip = (l_hip + r_hip) / 2
+    elbow = (l_elbow + r_elbow) / 2
+    wrist = (l_wrist + r_wrist) / 2
+
+    is_up = (hip[1] - shoulder[1]) > 0.02 and landmarks_confident
+    entering_hold = is_up or (passed and landmarks_confident)
+
+    rep_complete = False
+
+    if state["phase"] == "REST":
+        if landmarks_confident and entering_hold:
+            state["phase"]        = "HOLD"
+            state["_exit_frames"] = 0
+
+    elif state["phase"] == "HOLD":
+        if not landmarks_confident:
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 15:
+                state["phase"]        = "REST"
+                state["_exit_frames"] = 0
+                rep_complete          = True
+        else:
+            state["_exit_frames"] = 0
+            if not is_up and not passed:
+                state["phase"]      = "REST"
+                state["rep_count"] += 1
+                rep_complete        = True
+            elif passed:
+                state["hold_time"] += dt
+
+    if state["hold_time"] >= state["hold_target"]:
+        rep_complete       = True
+        state["hold_time"] = 0.0
+        state["phase"]     = "REST"
+
+    pct = int(similarity * 100)
+    if not ref_frames:
+        primary_cue = "No reference video found — add mckenzie_pressup_reference.mp4"
+    elif not landmarks_confident:
+        primary_cue = "Move closer so I can see your pose."
+    elif passed:
+        primary_cue = "Good. Hold at the top and breathe."
+    elif not is_up:
+        primary_cue = "Push your chest up — extend through your spine."
+    else:
+        primary_cue = f"Adjust your position — {pct}% match. Aim for 50%."
+
+    GREEN = (0, 220, 80)
+    RED   = (0, 60, 255)
+    color = GREEN if passed else RED
+
+    joint_points = [
+        (shoulder[0], shoulder[1], color, "Shoulder"),
+        (hip[0],      hip[1],      color, "Hip"),
+        (elbow[0],    elbow[1],    color, "Elbow"),
+        (wrist[0],    wrist[1],    color, "Wrist"),
+    ]
+
+    checks = {
+        "similarity": (passed, float(pct), f"Match: {pct}% — aim for 50%+"),
+    }
+
+    return {
+        "passed":        passed,
+        "checks":        checks,
+        "primary_cue":   primary_cue,
+        "joint_points":  joint_points,
+        "state":         state,
+        "rep_complete":  rep_complete,
+        "hold_time":     state["hold_time"],
+        "hold_target":   state["hold_target"],
+        "is_time_based": True,
     }
 
 
 META = {
     "name":        "McKenzie Press-up",
-    "camera_hint": "Lie face down, hands under shoulders. Side-on to camera.",
+    "camera_hint":  "Lie face down, hands under shoulders. Side-on to camera.",
+    "instruction":  "Good. Press up slowly, keep your hips down and your back relaxed.",
     "phases":      ["Herniated Disc Ph1"],
-    "rep_trigger": "chest_elev",
+    "rep_trigger": "hold_duration",
 }

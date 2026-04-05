@@ -87,22 +87,40 @@ KEY_MAP = {
 #  TTS Speaker  (queue-based — same pattern as spineguard.py)
 # ══════════════════════════════════════════════════════════════════════════════
 class TTSSpeaker:
+    """
+    Queue-based TTS worker.
+    Two channels:
+      • speak()          — normal coaching cue  (drops stale cues if a new one arrives)
+      • speak_priority() — high-priority cue    (pre-empts the normal queue, e.g. countdown)
+
+    Enhanced with per-check cooldown tracking so individual joint corrections
+    (e.g. "keep your back flat", "level your hips") can be cycled independently.
+    """
     def __init__(self):
-        self._queue  = queue.Queue()
-        self._thread = threading.Thread(target=self._worker, daemon=True)
+        self._queue          = queue.Queue()
+        self._priority       = queue.Queue()   # countdown beats coaching
+        self._check_cooldown = {}              # check_name -> last_spoken_time
+        self._check_interval = 6.0            # seconds between repeating same check cue
+        self._cycle_interval = 3.0            # seconds before moving to next failing check
+        self._last_cycle_at  = 0.0            # when we last spoke any check cue
+        self._thread         = threading.Thread(target=self._worker, daemon=True)
         self._thread.start()
 
     def _worker(self):
         try:
             import pyttsx3
             engine = pyttsx3.init()
-            engine.setProperty('rate',   165)
+            engine.setProperty('rate',   180)   # slightly faster for countdown
             engine.setProperty('volume', 1.0)
         except Exception as e:
             print(f"[TTS] Engine init failed: {e}")
             return
         while True:
-            text = self._queue.get()
+            # Priority queue always wins
+            try:
+                text = self._priority.get_nowait()
+            except queue.Empty:
+                text = self._queue.get()   # blocks until normal cue arrives
             if text is None:
                 break
             try:
@@ -111,9 +129,13 @@ class TTSSpeaker:
             except Exception as e:
                 print(f"[TTS] Speech error: {e}")
             finally:
-                self._queue.task_done()
+                try:
+                    self._queue.task_done()
+                except Exception:
+                    pass
 
     def speak(self, text):
+        """Speak a coaching cue, discarding any stale queued cue first."""
         while not self._queue.empty():
             try:
                 self._queue.get_nowait()
@@ -121,6 +143,54 @@ class TTSSpeaker:
             except queue.Empty:
                 break
         self._queue.put(text)
+
+    def speak_priority(self, text):
+        """Speak immediately, pre-empting normal coaching queue."""
+        self._priority.put(text)
+
+    def speak_checks(self, checks: dict):
+        """
+        Rotate through all failing checks and speak the next due cue.
+
+        Strategy:
+        - Only one cue fires per call (don't flood the user).
+        - Each check_name has its own cooldown (_check_interval) so the same
+          instruction isn't repeated for that joint too quickly.
+        - Between checks we enforce a shorter gap (_cycle_interval) to keep
+          coaching spaced out even when many checks fail simultaneously.
+        - We cycle through failing checks in order so the user hears each
+          distinct correction within a few seconds.
+        """
+        import time
+        now = time.time()
+
+        # Enforce minimum gap between any two check cues
+        if now - self._last_cycle_at < self._cycle_interval:
+            return
+
+        # Collect all failing checks that have a usable cue
+        failing = [
+            (name, cue)
+            for name, (passed, _value, cue) in checks.items()
+            if not passed and cue
+        ]
+        if not failing:
+            return
+
+        # Find the check whose cue is most overdue (longest since spoken)
+        best_name, best_cue = max(
+            failing,
+            key=lambda nc: now - self._check_cooldown.get(nc[0], 0.0)
+        )
+
+        # Only speak if its per-check cooldown has expired
+        last_spoken = self._check_cooldown.get(best_name, 0.0)
+        if now - last_spoken < self._check_interval:
+            return
+
+        self.speak(best_cue)
+        self._check_cooldown[best_name] = now
+        self._last_cycle_at = now
 
     def stop(self):
         self._queue.put(None)
@@ -223,7 +293,8 @@ def draw_check_panel(frame, checks, rep_count, exercise_name):
     cv2.addWeighted(ov, 0.65, frame, 0.35, 0, frame)
 
     # Exercise name + rep count header
-    cv2.putText(frame, f"{exercise_name}   Reps: {rep_count}",
+    header_text = f"{exercise_name}   Reps: {rep_count}"
+    cv2.putText(frame, header_text,
                 (18, y0 + 20), font, 0.50, (220, 220, 220), 1)
 
     for i, (check_name, (passed, value, _cue)) in enumerate(checks.items()):
@@ -298,6 +369,62 @@ def build_split_screen(user_panel, model_panel, exercise_name):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  Hold Timer Overlay (for time-based exercises like planks)
+# ══════════════════════════════════════════════════════════════════════════════
+def draw_hold_timer(frame, hold_time, hold_target):
+    """Draw a hold timer with progress bar at the top-right of the user panel."""
+    h, w, _ = frame.shape
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    elapsed = min(hold_time, hold_target)
+    remaining = max(hold_target - hold_time, 0)
+    progress = hold_time / hold_target if hold_target > 0 else 0
+
+    # Timer box dimensions
+    box_w = 200
+    box_h = 60
+    box_x = w - box_w - 12
+    box_y = 10
+
+    # Background
+    ov = frame.copy()
+    cv2.rectangle(ov, (box_x, box_y), (box_x + box_w, box_y + box_h), (0, 0, 0), -1)
+    cv2.addWeighted(ov, 0.7, frame, 0.3, 0, frame)
+    cv2.rectangle(frame, (box_x, box_y), (box_x + box_w, box_y + box_h), (100, 100, 100), 1)
+
+    # Progress bar
+    bar_x = box_x + 8
+    bar_y = box_y + 8
+    bar_w = box_w - 16
+    bar_h = 8
+    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), (60, 60, 60), -1)
+    fill_w = int(bar_w * min(progress, 1.0))
+    bar_color = (0, 220, 80) if progress >= 1.0 else (0, 180, 255)
+    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + fill_w, bar_y + bar_h), bar_color, -1)
+
+    # Timer text
+    if progress >= 1.0:
+        timer_text = "COMPLETE!"
+        timer_color = (0, 220, 80)
+    else:
+        timer_text = f"Hold: {elapsed:.0f}s / {hold_target:.0f}s"
+        timer_color = (220, 220, 220)
+
+    cv2.putText(frame, timer_text, (box_x + 10, box_y + 36), font, 0.55, timer_color, 1)
+
+    # Remaining time
+    if progress < 1.0:
+        remain_text = f"{remaining:.0f}s remaining"
+        cv2.putText(frame, remain_text, (box_x + 10, box_y + 52), font, 0.40, (150, 150, 150), 1)
+    else:
+        done_text = "Timer complete — well done!"
+        tw = cv2.getTextSize(done_text, font, 0.36, 1)[0][0]
+        cv2.putText(frame, done_text, (box_x + (box_w - tw) // 2, box_y + 52), font, 0.36, (0, 220, 80), 1)
+
+    return frame
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  Exercise Monitor  (main class)
 # ══════════════════════════════════════════════════════════════════════════════
 class ExerciseMonitor:
@@ -314,6 +441,11 @@ class ExerciseMonitor:
         self.rep_count        = 0
         self.exercise_module  = None
         self.exercise_meta    = {}
+
+        # Voice countdown state
+        self._countdown_last  = -1     # last integer second spoken during countdown
+        self._last_phase      = None   # detect phase transitions
+        self._intro_spoken    = False  # speak coaching intro once per HOLD entry
 
         self.load_exercise(exercise_key)
 
@@ -374,11 +506,50 @@ class ExerciseMonitor:
         checks     = result["checks"]
         joints     = result["joint_points"]
         ex_name    = self.exercise_meta.get("name", "Exercise")
+        is_time_based = result.get("is_time_based", False)
+        hold_time  = result.get("hold_time", 0.0)
+        hold_target = result.get("hold_target", 30.0)
 
         # ── Draw MediaPipe skeleton ───────────────────────────────────────────
+        # ── Draw left-side skeleton only, hide all right-side landmarks ───────
+        LEFT_CONNECTIONS = [
+            (mp_pose.PoseLandmark.LEFT_SHOULDER, mp_pose.PoseLandmark.LEFT_ELBOW),
+            (mp_pose.PoseLandmark.LEFT_ELBOW,    mp_pose.PoseLandmark.LEFT_WRIST),
+            (mp_pose.PoseLandmark.LEFT_SHOULDER, mp_pose.PoseLandmark.LEFT_HIP),
+            (mp_pose.PoseLandmark.LEFT_HIP,      mp_pose.PoseLandmark.LEFT_KNEE),
+            (mp_pose.PoseLandmark.LEFT_KNEE,     mp_pose.PoseLandmark.LEFT_ANKLE),
+            (mp_pose.PoseLandmark.LEFT_ANKLE,    mp_pose.PoseLandmark.LEFT_FOOT_INDEX),
+        ]
+        HIDDEN = {
+            mp_pose.PoseLandmark.RIGHT_SHOULDER.value,
+            mp_pose.PoseLandmark.RIGHT_ELBOW.value,
+            mp_pose.PoseLandmark.RIGHT_WRIST.value,
+            mp_pose.PoseLandmark.RIGHT_HIP.value,
+            mp_pose.PoseLandmark.RIGHT_KNEE.value,
+            mp_pose.PoseLandmark.RIGHT_ANKLE.value,
+            mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value,
+            mp_pose.PoseLandmark.RIGHT_PINKY.value,
+            mp_pose.PoseLandmark.RIGHT_INDEX.value,
+            mp_pose.PoseLandmark.RIGHT_THUMB.value,
+            mp_pose.PoseLandmark.RIGHT_EAR.value,
+            mp_pose.PoseLandmark.RIGHT_EYE.value,
+            mp_pose.PoseLandmark.RIGHT_EYE_INNER.value,
+            mp_pose.PoseLandmark.RIGHT_EYE_OUTER.value,
+        }
+        landmark_spec = {
+            idx: (
+                mp_drawing.DrawingSpec(color=(0,0,0), thickness=0, circle_radius=0)
+                if idx in HIDDEN else
+                mp_drawing.DrawingSpec(color=(200,200,200), thickness=1, circle_radius=2)
+            )
+            for idx in range(33)
+        }
+        line_spec = mp_drawing.DrawingSpec(color=(180, 180, 180), thickness=1)
         mp_drawing.draw_landmarks(
-            frame, res.pose_landmarks, mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+            frame, res.pose_landmarks,
+            connections=[(a.value, b.value) for a, b in LEFT_CONNECTIONS],
+            landmark_drawing_spec=landmark_spec,
+            connection_drawing_spec=line_spec,
         )
 
         # ── Per-joint coloured dots ───────────────────────────────────────────
@@ -387,6 +558,10 @@ class ExerciseMonitor:
         # ── Check panel (bottom-left HUD) ─────────────────────────────────────
         frame = draw_check_panel(frame, checks, self.rep_count, ex_name)
 
+        # ── Hold timer overlay (for time-based exercises) ─────────────────────
+        if is_time_based:
+            frame = draw_hold_timer(frame, hold_time, hold_target)
+
         # ── Cue banner (very bottom strip) ────────────────────────────────────
         frame = draw_cue_banner(frame, cue, passed)
 
@@ -394,13 +569,63 @@ class ExerciseMonitor:
         cv2.putText(frame, "YOU", (PANEL_W - 65, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 220, 255), 2)
 
-        # ── Voice alert (throttled) ───────────────────────────────────────────
-        now = time.time()
-        if cue != self.last_cue or (now - self.last_cue_time) >= FEEDBACK_COOLDOWN:
-            if not passed:
-                self.tts.speak(cue)
-            self.last_cue      = cue
-            self.last_cue_time = now
+        # ── Voice logic ───────────────────────────────────────────────────────
+        current_phase = (self.exercise_state or {}).get("phase", "REST")
+        now           = time.time()
+
+        # 1. Phase-entry announcements
+        entered_hold   = current_phase in ("HOLD", "EXTEND") and self._last_phase not in ("HOLD", "EXTEND")
+        exited_hold    = current_phase == "REST" and self._last_phase in ("HOLD", "EXTEND")
+
+        if entered_hold:
+            # Speak the exercise-specific coaching instruction once on entry
+            instruction = self.exercise_meta.get("instruction",
+                          self.exercise_meta.get("cue", cue))
+            self.tts.speak(instruction)
+            self._intro_spoken   = True
+            self._countdown_last = -1      # reset countdown for this rep
+
+        # 2. Rep-completion announcement (on exit from hold → REST)
+        if exited_hold:
+            rep_num = self.rep_count
+            if rep_num > 0:
+                self.tts.speak_priority(f"Rep {rep_num} complete. Well done.")
+
+        # 3. Corrective per-check coaching (the main upgrade)
+        #    When form is wrong, cycle through ALL failing check cues so the
+        #    user hears specific joint corrections (e.g. "keep your back flat",
+        #    "level your hips") rather than just one generic primary cue.
+        if not passed:
+            if len(checks) > 1:
+                # Multi-check exercises: rotate through each failing check cue
+                self.tts.speak_checks(checks)
+            else:
+                # Single-check (similarity-only) exercises: use primary_cue with cooldown
+                if cue != self.last_cue or (now - self.last_cue_time) >= FEEDBACK_COOLDOWN:
+                    self.tts.speak(cue)
+                    self.last_cue      = cue
+                    self.last_cue_time = now
+
+        # 4. Positive reinforcement when form is consistently good during hold
+        if passed and current_phase in ("HOLD", "EXTEND"):
+            if cue != self.last_cue or (now - self.last_cue_time) >= FEEDBACK_COOLDOWN * 2:
+                self.tts.speak(cue)   # e.g. "Good bridge. Squeeze your glutes."
+                self.last_cue      = cue
+                self.last_cue_time = now
+
+        # 5. Last-5-second countdown (priority channel, fires once per second)
+        if is_time_based and current_phase in ("HOLD", "EXTEND") and hold_target > 0:
+            remaining = hold_target - hold_time
+            if 0 < remaining <= 5.0:
+                tick = int(remaining)          # floor to whole seconds: 5,4,3,2,1
+                if tick != self._countdown_last and tick >= 1:
+                    self.tts.speak_priority(str(tick))
+                    self._countdown_last = tick
+            elif remaining <= 0 and self._countdown_last != 0:
+                self.tts.speak_priority("Great job! Come back to start.")
+                self._countdown_last = 0
+
+        self._last_phase = current_phase
 
         return frame
 
@@ -440,6 +665,7 @@ def main():
         raw = cv2.flip(raw, 1)
 
         user_panel  = monitor.process_frame(raw.copy())
+        #user_panel = cv2.flip(user_panel, 1)
 
         meta        = monitor.exercise_meta
         model_panel = player.get_frame(

@@ -17,7 +17,6 @@ from . import chin_tuck
 from . import scapular_retraction
 from . import thoracic_extension
 from . import wall_angels
-from . import resistance_band_row
 from . import lunge
 
 EXERCISES = {
@@ -40,6 +39,5 @@ EXERCISES = {
     "scapular_retraction": scapular_retraction,
     "thoracic_extension": thoracic_extension,
     "wall_angels": wall_angels,
-    "resistance_band_row": resistance_band_row,
     "lunge": lunge,
 }

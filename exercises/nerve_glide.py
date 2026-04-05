@@ -2,63 +2,176 @@
 Nerve Glide — Exercise Contract
 ────────────────────────────────
 Camera position : Side-on (patient lying on back)
-Starting position: Lying on back, one leg raised with knee bent
+Mode            : Similarity-based — compares user pose to a reference video
 
-Movement: Patient alternately extends and flexes the raised leg
-          to gently glide the sciatic nerve
-
-What we check
+How it works
 ─────────────
-1. Controlled motion    : leg moves smoothly between flexion and extension
-2. Knee angle range     : knee moves through ~60–120° range
-3. Back contact         : lower back stays flat on floor
-4. No bouncing          : movement is slow and controlled
+1. On first call, loads a reference video (nerve_glide_reference.mp4 next to this file)
+2. Samples 20 frames evenly and stores all angle sets (no averaging)
+3. Each live frame, finds the BEST matching reference frame
+4. Similarity >= 50% -> hold time accumulates
+5. Similarity ≥ 50% → hold time accumulates
+6. Hold time reaches target → rep complete
 
-States tracked
-──────────────
-FLEX   → knee bent, leg toward chest
-EXTEND → leg straightening out
-Rep counted each FLEX→EXTEND→FLEX cycle
-
-Feedback cues
-─────────────
-PASS   : "Good. Move slowly and gently."
-FAST   : "Slow down — this should be a gentle glide."
-BACK   : "Keep your lower back on the floor."
-RANGE  : "Straighten your leg more at the top."
+Key angles checked (side-on nerve glide)
+─────────────────────────────────────────
+- Hip → Knee → Ankle       (knee angle)
+- Shoulder → Hip → Knee    (back flatness)
 """
 
 import numpy as np
 import mediapipe as mp
+import os
+import cv2
 
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-# ── Thresholds (relaxed for real-world Mediapipe noise) ───────────────────────
-KNEE_FLEX_MIN    = 40    # degrees — minimum knee bend (was 50)
-KNEE_FLEX_MAX    = 145   # degrees — maximum knee bend (was 130)
-BACK_FLAT_TOL    = 20    # degrees — shoulder-hip-knee flatness (was 12)
-SPEED_TOL        = 0.08  # normalised — max movement per frame (was 0.04)
+SIMILARITY_THRESHOLD = 0.80
+HOLD_TARGET_DEFAULT  = 30.0
+SAMPLE_FRAMES        = 20
 
-FLEX_THRESH      = 85    # knee angle below = flexed (was 70)
-EXTEND_THRESH    = 95    # knee angle above = extended (was 110)
+# Stores all sampled reference frames (not averaged)
+_reference_frames = None
+_ref_pose         = None
 
 
-def _angle(a, b, c):
-    a, b, c = np.array(a), np.array(b), np.array(c)
-    ba, bc = a - b, c - b
-    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
-    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+def _get_ref_pose():
+    global _ref_pose
+    if _ref_pose is None:
+        _ref_pose = mp_pose.Pose(
+            static_image_mode=True,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+        )
+    return _ref_pose
 
 
 def _pt(landmarks, lm_enum):
     lm = landmarks[lm_enum.value]
-    return [lm.x, lm.y]
+    return np.array([lm.x, lm.y])
 
 
-def evaluate(landmarks, baseline_shoulder_y=None, state=None):
+def _angle(a, b, c):
+    ba  = a - b
+    bc  = c - b
+    cos = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+
+
+def _extract_angles(landmarks):
+    l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
+    r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
+    l_hip      = _pt(landmarks, LM.LEFT_HIP)
+    r_hip      = _pt(landmarks, LM.RIGHT_HIP)
+    l_knee     = _pt(landmarks, LM.LEFT_KNEE)
+    r_knee     = _pt(landmarks, LM.RIGHT_KNEE)
+    l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
+    r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
+
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip      = (l_hip + r_hip) / 2
+    knee     = (l_knee + r_knee) / 2
+    ankle    = (l_ankle + r_ankle) / 2
+
+    knee_angle = _angle(hip, knee, ankle)
+    back_angle = _angle(shoulder, hip, knee)
+
+    return {
+        "knee_angle": knee_angle,
+        "back_angle": back_angle,
+    }
+
+
+def _load_reference():
+    global _reference_frames
+    if _reference_frames is not None:
+        return _reference_frames
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for fname in ["nerve_glide_reference.mp4", "nerve_glide_ref.mp4",
+                  "nerve_glide_reference.avi", "nerve_glide_ref.avi"]:
+        path = os.path.join(here, fname)
+        if not os.path.isfile(path):
+            continue
+
+        cap   = cv2.VideoCapture(path)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total < 1:
+            cap.release()
+            continue
+
+        indices    = np.linspace(0, total - 1, min(SAMPLE_FRAMES, total), dtype=int)
+        pose       = _get_ref_pose()
+        all_frames = []
+
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = pose.process(rgb)
+            if result.pose_landmarks:
+                all_frames.append(_extract_angles(result.pose_landmarks.landmark))
+        cap.release()
+
+        if not all_frames:
+            print(f"[Nerve Glide] No pose detected in any frame of {fname}")
+            continue
+
+        _reference_frames = all_frames
+        print(f"[Nerve Glide] Reference loaded from {fname} "
+              f"({len(all_frames)}/{len(indices)} frames valid)")
+        return _reference_frames
+
+    print("[Nerve Glide] WARNING: No reference video found. "
+          "Place nerve_glide_reference.mp4 next to nerve_glide.py")
+    return None
+
+
+def _compute_similarity(user_angles, ref_frames):
+    """Find the best matching reference frame and return its score."""
+    MAX_DIFF   = 30.0
+    best_score = 0.0
+    for ref_angles in ref_frames:
+        scores = []
+        for key in ref_angles:
+            if key not in user_angles:
+                continue
+            diff  = abs(user_angles[key] - ref_angles[key])
+            score = max(0.0, 1.0 - diff / MAX_DIFF)
+            scores.append(score)
+        frame_score = float(np.mean(scores)) if scores else 0.0
+        best_score  = max(best_score, frame_score)
+    return best_score
+
+
+def evaluate(landmarks, state=None):
     if state is None:
-        state = {"phase": "FLEX", "rep_count": 0}
+        state = {
+            "phase":        "REST",
+            "hold_time":    0.0,
+            "hold_target":  HOLD_TARGET_DEFAULT,
+            "rep_count":    0,
+            "_last_ts":     None,
+            "_exit_frames": 0,
+        }
+
+    import time
+    now = time.time()
+    dt  = min(now - state["_last_ts"], 0.1) if state["_last_ts"] else 0.0
+    state["_last_ts"] = now
+
+    ref_frames  = _load_reference()
+    user_angles = _extract_angles(landmarks)
+
+    similarity = _compute_similarity(user_angles, ref_frames) if ref_frames else 0.0
+    passed     = similarity >= SIMILARITY_THRESHOLD
+
+    l_vis = landmarks[LM.LEFT_HIP.value].visibility
+    r_vis = landmarks[LM.RIGHT_HIP.value].visibility
+    landmarks_confident = l_vis > 0.4 and r_vis > 0.4
 
     l_shoulder = _pt(landmarks, LM.LEFT_SHOULDER)
     r_shoulder = _pt(landmarks, LM.RIGHT_SHOULDER)
@@ -69,62 +182,86 @@ def evaluate(landmarks, baseline_shoulder_y=None, state=None):
     l_ankle    = _pt(landmarks, LM.LEFT_ANKLE)
     r_ankle    = _pt(landmarks, LM.RIGHT_ANKLE)
 
-    shoulder = [(l_shoulder[0]+r_shoulder[0])/2, (l_shoulder[1]+r_shoulder[1])/2]
-    hip      = [(l_hip[0]+r_hip[0])/2,           (l_hip[1]+r_hip[1])/2]
-    knee     = [(l_knee[0]+r_knee[0])/2,          (l_knee[1]+r_knee[1])/2]
-    ankle    = [(l_ankle[0]+r_ankle[0])/2,         (l_ankle[1]+r_ankle[1])/2]
+    shoulder = (l_shoulder + r_shoulder) / 2
+    hip      = (l_hip + r_hip) / 2
+    knee     = (l_knee + r_knee) / 2
+    ankle    = (l_ankle + r_ankle) / 2
 
-    knee_angle = _angle(hip, knee, ankle)
-    back_angle = _angle(shoulder, hip, knee)
-    back_ok = back_angle >= (180 - BACK_FLAT_TOL)
-    knee_ok = KNEE_FLEX_MIN <= knee_angle <= KNEE_FLEX_MAX
+    is_moving     = landmarks_confident and (user_angles.get("knee_angle", 0) > 40)
+    entering_hold = is_moving or (passed and landmarks_confident)
 
-    # ── Rep state machine ─────────────────────────────────────────────────
-    is_flexed = knee_angle < FLEX_THRESH
-    is_extended = knee_angle > EXTEND_THRESH
     rep_complete = False
 
-    if state["phase"] == "FLEX" and is_extended:
-        state["phase"] = "EXTEND"
-    elif state["phase"] == "EXTEND" and is_flexed:
-        state["phase"] = "FLEX"
-        state["rep_count"] += 1
-        rep_complete = True
+    if state["phase"] == "REST":
+        if landmarks_confident and entering_hold:
+            state["phase"]        = "HOLD"
+            state["_exit_frames"] = 0
 
-    GREEN  = (0, 220, 80)
-    YELLOW = (0, 200, 255)
-    RED    = (0, 60, 255)
+    elif state["phase"] == "HOLD":
+        if not landmarks_confident:
+            state["_exit_frames"] += 1
+            if state["_exit_frames"] > 15:
+                state["phase"]        = "REST"
+                state["_exit_frames"] = 0
+                rep_complete          = True
+        else:
+            state["_exit_frames"] = 0
+            if not is_moving and not passed:
+                state["phase"]      = "REST"
+                state["rep_count"] += 1
+                rep_complete        = True
+            elif passed:
+                state["hold_time"] += dt
 
-    checks = {
-        "knee_range": (knee_ok,  knee_angle, "Move through the full range — bend and straighten."),
-        "back_flat":  (back_ok,  back_angle, "Keep your lower back on the floor."),
-    }
+    if state["hold_time"] >= state["hold_target"]:
+        rep_complete       = True
+        state["hold_time"] = 0.0
+        state["phase"]     = "REST"
 
-    all_passed = all(v[0] for v in checks.values())
-    primary_cue = "Good. Move slowly and gently." if all_passed else next(
-        v[2] for v in checks.values() if not v[0]
-    )
+    pct = int(similarity * 100)
+    if not ref_frames:
+        primary_cue = "No reference video found — add nerve_glide_reference.mp4"
+    elif not landmarks_confident:
+        primary_cue = "Move closer so I can see your pose."
+    elif passed:
+        primary_cue = "Good. Move slowly and gently."
+    elif not is_moving:
+        primary_cue = "Move through the full range — bend and straighten."
+    else:
+        primary_cue = f"Adjust your position — {pct}% match. Aim for 50%."
+
+    GREEN = (0, 220, 80)
+    RED   = (0, 60, 255)
+    color = GREEN if passed else RED
 
     joint_points = [
-        (shoulder[0], shoulder[1], GREEN if back_ok else RED, "Shoulder"),
-        (hip[0],      hip[1],      GREEN, "Hip"),
-        (knee[0],     knee[1],     GREEN if knee_ok else RED, "Knee"),
-        (ankle[0],    ankle[1],    YELLOW, "Ankle"),
+        (shoulder[0], shoulder[1], color, "Shoulder"),
+        (hip[0],      hip[1],      color, "Hip"),
+        (knee[0],     knee[1],     color, "Knee"),
+        (ankle[0],    ankle[1],    color, "Ankle"),
     ]
 
+    checks = {
+        "similarity": (passed, float(pct), f"Match: {pct}% — aim for 50%+"),
+    }
+
     return {
-        "passed":       all_passed,
-        "checks":       checks,
-        "primary_cue":  primary_cue,
-        "joint_points": joint_points,
-        "state":        state,
-        "rep_complete": rep_complete,
+        "passed":        passed,
+        "checks":        checks,
+        "primary_cue":   primary_cue,
+        "joint_points":  joint_points,
+        "state":         state,
+        "rep_complete":  rep_complete,
+        "hold_time":     state["hold_time"],
+        "hold_target":   state["hold_target"],
+        "is_time_based": True,
     }
 
 
 META = {
     "name":        "Nerve Glide",
-    "camera_hint": "Lie on your back, raise one leg. Side-on to camera.",
+    "camera_hint":  "Lie on your back, raise one leg. Side-on to camera.",
+    "instruction":  "Good. Keep your knee straight and slowly flex and point your foot.",
     "phases":      ["Sciatica Ph1"],
-    "rep_trigger": "knee_angle",
+    "rep_trigger": "hold_duration",
 }

@@ -618,7 +618,7 @@ export default function App() {
         {settingsModal}
         <button className="float-back-btn" onClick={goBack}>← Back</button>
         <div style={{ width:"100vw", height:"100vh", position:"relative", background:"#080d14" }}>
-          <iframe src="http://localhost:5176" style={{ width:"100%", height:"100%", border:"none" }} title="SpineViz AI" />
+          <iframe src="/spineviz/index.html" style={{ width:"100%", height:"100%", border:"none" }} title="SpineViz AI" />
         </div>
       </>
     </PageTransition>
@@ -630,7 +630,7 @@ export default function App() {
         {settingsModal}
         <button className="float-back-btn" onClick={goBack}>← Back</button>
         <div style={{ width:"100vw", height:"100vh", position:"relative", background:"#ecf8f8" }}>
-        <iframe src="http://localhost:5175" allow="camera; microphone; display-capture" allowFullScreen style={{ width:"100%", height:"100%", border:"none" }} title="Physio Exercise Monitor" />
+        <iframe src="http://localhost:5174" allow="camera; microphone; display-capture" allowFullScreen style={{ width:"100%", height:"100%", border:"none" }} title="Physio Exercise Monitor" />
         </div>
       </>
     </PageTransition>
