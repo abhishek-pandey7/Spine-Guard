@@ -109,30 +109,51 @@ class TTSSpeaker:
     def _worker(self):
         try:
             import pyttsx3
-            engine = pyttsx3.init()
-            engine.setProperty('rate',   180)   # slightly faster for countdown
+            try:
+                import pythoncom
+                pythoncom.CoInitialize()
+            except ImportError:
+                pass
+            
+            print("[TTS] Initializing engine with SAPI5...")
+            # Explicitly use sapi5 on Windows for more stability
+            engine = pyttsx3.init('sapi5')
+            engine.setProperty('rate',   180)
             engine.setProperty('volume', 1.0)
+            print("[TTS] Worker started and ready.")
+            
+            # Health check: speak once when starting
+            engine.say("I am ready.")
+            engine.runAndWait()
+            print("[TTS] Health check complete.")
         except Exception as e:
             print(f"[TTS] Engine init failed: {e}")
             return
+
         while True:
-            # Priority queue always wins
+            # 1. Check priority first
+            text = None
             try:
                 text = self._priority.get_nowait()
             except queue.Empty:
-                text = self._queue.get()   # blocks until normal cue arrives
+                # 2. If no priority, wait with timeout on normal queue
+                try:
+                    text = self._queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue  # loop and re-check priority
+
             if text is None:
                 break
+                
             try:
+                print(f"[TTS] Speaking: {text}")
                 engine.say(text)
                 engine.runAndWait()
+                print(f"[TTS] Done speaking.")
             except Exception as e:
                 print(f"[TTS] Speech error: {e}")
             finally:
-                try:
-                    self._queue.task_done()
-                except Exception:
-                    pass
+                pass
 
     def speak(self, text):
         """Speak a coaching cue, discarding any stale queued cue first."""
@@ -486,9 +507,14 @@ class ExerciseMonitor:
         res   = self.pose.process(rgb)
 
         if not res.pose_landmarks or not self.exercise_module:
-            cv2.putText(frame,
-                        "No pose detected — position yourself in frame",
-                        (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 80, 255), 1)
+            msg = "No pose detected — position yourself in frame"
+            cv2.putText(frame, msg, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 80, 255), 1)
+            
+            # Periodically remind the user to get in frame
+            now = time.time()
+            if (now - self.last_cue_time) >= 10.0:  # Speak every 10 seconds
+                self.tts.speak("I can't see you. Please step back so your full body is in the frame.")
+                self.last_cue_time = now
             return frame
 
         lm = res.pose_landmarks.landmark

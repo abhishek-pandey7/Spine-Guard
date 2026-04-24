@@ -268,4 +268,4 @@ META = {
     "instruction":  "Good. Reach your arms forward and breathe deeply into your back.",
     "phases":      ["Muscle Strain Ph1", "Facet Joint Ph1", "Spinal Stenosis Ph1"],
     "rep_trigger": "hold_duration",
-}
+} 

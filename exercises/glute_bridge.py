@@ -29,7 +29,7 @@ import cv2
 mp_pose = mp.solutions.pose
 LM = mp_pose.PoseLandmark
 
-SIMILARITY_THRESHOLD = 0.85
+SIMILARITY_THRESHOLD = 0.80
 HOLD_TARGET_DEFAULT  = 30.0
 SAMPLE_FRAMES        = 20
 

@@ -2,7 +2,7 @@
 
 ## 1. Frontend (main app — auth, chatbot, spine viz, physio)
 ```bash
-cd rishi
+cd main_app
 npm install
 npm run dev
 # → http://localhost:5173
@@ -10,14 +10,14 @@ npm run dev
 
 ## 2. Backend (chatbot + session API)
 ```bash
-cd rishi
+cd main_app
 pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ## 3. Physio WebSocket backend (exercise form evaluation)
 ```bash
-cd backend
+cd physio_backend
 pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -25,12 +25,12 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ## Ports summary
 | Service | Port |
 |---|---|
-| Main React app (rishi) | 5173 |
-| Chatbot + session API (rishi/main.py) | 8001 |
-| Physio WebSocket API (backend/main.py) | 8000 |
+| Main React app (main_app) | 5173 |
+| Chatbot + session API (main_app/main.py) | 8001 |
+| Physio WebSocket API (physio_backend/main.py) | 8000 |
 
 ## SpineViz (already built & embedded)
-The SpineViz 3D MRI app is pre-built and served as a static file at `/spineviz/index.html` inside the rishi public folder. No separate server needed.
+The SpineViz 3D MRI app is pre-built and served as a static file at `/spineviz/index.html` inside the main_app public folder. No separate server needed.
 
 ## Supabase tables needed
 - `profiles` — user/doctor profiles
